@@ -1,0 +1,59 @@
+title: Vendor cập nhật tên / số điện thoại trong Account Settings
+
+participant Vendor as "Chủ cửa hàng"
+participant InfoUI as "VendorPersonalInformationPage"
+participant AuthBloc as "AuthBloc"
+participant AuthRepo as "AuthRepository"
+participant Api as "ApiClient"
+participant Backend as "User Service"
+
+Vendor->InfoUI: Mở trang "Thông tin cá nhân"
+InfoUI->Vendor: Hiển thị dữ liệu từ AuthState
+Vendor->InfoUI: Nhấn icon bút để sửa tên hoặc điện thoại
+InfoUI->InfoUI: Toggle isEditing\n(TextField enabled)
+Vendor->InfoUI: Nhập giá trị mới và nhấn "Lưu lại"
+
+InfoUI->AuthBloc: Dispatch UpdateUserInfoEvent(name,phone,email:null)
+AuthBloc->AuthRepo: updateUserProfile(name,phone)
+AuthRepo->Api: PUT /users/me {name,phone}
+Api->Backend: Lưu profile (không cho phép đổi email)
+Backend-->Api: Success JSON (user cập nhật)
+Api-->AuthRepo: Response
+AuthRepo-->AuthBloc: Updated user
+AuthBloc->InfoUI: state = UpdateSuccess
+
+alt Cập nhật thành công
+  InfoUI->InfoUI: setState(editing=false)
+  InfoUI->Vendor: Hiển thị Snackbar "Đã lưu" và\ncontext.go('/vendor-account-information')
+else Lỗi validation / mạng
+  AuthRepo-->AuthBloc: ApiException(message)
+  AuthBloc->InfoUI: state = UpdateFailure(message)
+  InfoUI->Vendor: Hiển thị thông báo lỗi
+end
+
+newpage Hoạt động (PlantUML): Vendor cập nhật thông tin cá nhân
+@startuml
+|Chủ cửa hàng|
+start
+:Mở trang Thông tin cá nhân;
+|Hệ thống|
+:Hiển thị dữ liệu hiện tại (tên, số điện thoại);
+|Chủ cửa hàng|
+:Nhấn icon bút để chỉnh sửa;
+:Nhập giá trị mới và nhấn "Lưu";
+|Hệ thống|
+:Kiểm tra dữ liệu và gửi API cập nhật;
+if (Thành công?) then (Có)
+  :Cập nhật state + Snackbar "Đã lưu";
+  :Điều hướng về Vendor Account Info;
+else (Không)
+  :Hiển thị thông báo lỗi;
+  |Chủ cửa hàng|
+  repeat
+    :Điều chỉnh thông tin;
+    |Hệ thống|
+    :Kiểm tra lại;
+  repeat while (Còn lỗi?)
+endif
+stop
+@enduml

@@ -1,0 +1,57 @@
+title: Đăng nhập chung khách & chủ cửa hàng
+
+participant User as "Người dùng\n(Khách / Chủ)"
+participant LoginUI as "LoginPage"
+participant AuthBloc as "AuthBloc"
+participant AuthRepo as "AuthRepository"
+participant Api as "ApiClient"
+participant Backend as "Auth Service"
+
+User->LoginUI: Nhập email & mật khẩu\nNhấn "Đăng nhập"
+LoginUI->AuthBloc: Dispatch LoginSubmitted(email,password)
+AuthBloc->AuthRepo: login(email,password)
+AuthRepo->Api: POST /auth/login
+Api->Backend: Xác thực thông tin
+Backend-->Api: Tokens + user profile
+Api-->AuthRepo: JSON response
+AuthRepo-->AuthBloc: AuthResponse(user,tokens)
+
+alt Đăng nhập thành công
+  AuthBloc->AuthBloc: Lưu user + tokens\ncập nhật state
+  AuthBloc->LoginUI: state = Authenticated(role)
+  alt role == customer
+    LoginUI->LoginUI: context.go('/home')
+  else role == vendor
+    LoginUI->LoginUI: context.go('/vendor-dashboard')
+  end
+else Sai thông tin / tài khoản khóa
+  AuthRepo-->AuthBloc: ApiException(message)
+  AuthBloc->LoginUI: state = AuthError(message)
+  LoginUI->User: Hiển thị Snackbar lỗi
+end
+
+newpage Hoạt động (PlantUML): Đăng nhập khách & chủ
+@startuml
+|Người dùng|
+start
+:Nhập email, mật khẩu và nhấn "Đăng nhập";
+|Hệ thống|
+:Kiểm tra thông tin đăng nhập;
+if (Thông tin hợp lệ?) then (Có)
+  :Lưu tokens + thông tin user;
+  if (Vai trò?) then (Khách hàng)
+    :Điều hướng về trang Home;
+  else (Chủ cửa hàng)
+    :Điều hướng về Vendor Dashboard;
+  endif
+else (Không)
+  :Hiển thị thông báo lỗi đăng nhập;
+  |Người dùng|
+  repeat
+    :Nhập lại thông tin;
+    |Hệ thống|
+    :Kiểm tra lại;
+  repeat while (Chưa hợp lệ?)
+endif
+stop
+@enduml

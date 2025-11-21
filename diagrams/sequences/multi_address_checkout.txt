@@ -1,0 +1,56 @@
+title: Chọn địa chỉ khác trong thanh toán và cập nhật phí ship
+
+participant Customer as "Khách hàng"
+participant CheckoutUI as "CheckoutPage"
+participant AddressSheet as "AddressPickerBottomSheet"
+participant CheckoutBloc as "CheckoutBloc"
+participant AddressRepo as "UserAddressRepository"
+participant OrderRepo as "OrderRepository"
+participant Api as "ApiClient"
+participant Backend as "Order/Shipping Service"
+
+Customer->CheckoutUI: Mở trang thanh toán
+CheckoutUI->CheckoutBloc: loadDefaultAddress()
+CheckoutBloc->AddressRepo: getAddresses()
+AddressRepo->Api: GET /users/me/addresses
+Api->Backend: Lấy danh sách địa chỉ
+Backend-->Api: JSON addresses
+Api-->AddressRepo: Response
+AddressRepo-->CheckoutBloc: List<UserAddress>
+CheckoutBloc->CheckoutUI: Hiển thị địa chỉ mặc định + phí ship
+
+Customer->CheckoutUI: Nhấn "Đổi địa chỉ"
+CheckoutUI->AddressSheet: show()
+AddressSheet->Customer: Danh sách địa chỉ để chọn
+Customer->AddressSheet: Chọn địa chỉ mới
+AddressSheet->CheckoutBloc: SelectAddress(addressId)
+CheckoutBloc->OrderRepo: calculateShipping(addressId,cartTotal)
+OrderRepo->Api: POST /orders/shipping-estimate
+Api->Backend: Tính phí ship theo địa chỉ mới
+Backend-->Api: {shippingFee,eta}
+Api-->OrderRepo: Response
+OrderRepo-->CheckoutBloc: Shipping data
+CheckoutBloc->CheckoutUI: Cập nhật phí ship + ETA
+CheckoutUI->Customer: Hiển thị tổng tiền mới
+
+newpage Hoạt động (PlantUML): Chọn địa chỉ trong Checkout
+@startuml
+|Khách hàng|
+start
+:Mở trang thanh toán;
+|Hệ thống|
+:Hiển thị địa chỉ mặc định + phí ship;
+|Khách hàng|
+:Nhấn "Đổi địa chỉ";
+|Hệ thống|
+:Bật bottom sheet danh sách địa chỉ;
+|Khách hàng|
+:Chọn địa chỉ mới;
+|Hệ thống|
+:Tính lại phí ship & ETA;
+:Cập nhật tổng tiền hiển thị;
+|Khách hàng|
+:Xác nhận thanh toán;
+stop
+@enduml
+

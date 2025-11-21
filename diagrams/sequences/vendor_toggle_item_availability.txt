@@ -1,0 +1,51 @@
+title: Vendor bật/tắt trạng thái món (còn hàng / hết hàng)
+
+participant Vendor as "Chủ cửa hàng"
+participant MenuUI as "VendorMenuItemsPage"
+participant MenuBloc as "VendorMenuBloc/Controller"
+participant VendorRepo as "VendorRepository"
+participant Api as "ApiClient"
+participant Backend as "Menu Service"
+participant Realtime as "Realtime Channel\n(SignalR/WebSocket)"
+
+Vendor->MenuUI: Mở danh sách món
+MenuUI->MenuBloc: loadMenuItems()
+MenuBloc->VendorRepo: getVendorMenuItems()
+VendorRepo->Api: GET /vendor/menu-items
+Api->Backend: Lấy danh sách món
+Backend-->Api: JSON items
+Api-->VendorRepo: Response
+VendorRepo-->MenuBloc: List<MenuItem>
+MenuBloc->MenuUI: Hiển thị danh sách + trạng thái
+
+Vendor->MenuUI: Toggle switch "Còn hàng/Hết hàng"
+MenuUI->MenuBloc: UpdateAvailabilityEvent(itemId,isAvailable)
+MenuBloc->VendorRepo: updateAvailability(itemId,isAvailable)
+VendorRepo->Api: PATCH /vendor/menu-items/{id}/availability
+Api->Backend: Cập nhật trạng thái
+Backend-->Api: Success + trạng thái mới
+Api-->VendorRepo: Response
+VendorRepo-->MenuBloc: Updated item
+MenuBloc->MenuUI: Refresh trạng thái
+MenuBloc->Realtime: Publish availability update
+Realtime->CustomerApps: Push cập nhật để ẩn hiện món theo real-time
+
+newpage Hoạt động (PlantUML): Vendor bật/tắt trạng thái món
+@startuml
+|Chủ cửa hàng|
+start
+:Mở trang Danh sách món;
+|Hệ thống|
+:Hiển thị trạng thái từng món;
+|Chủ cửa hàng|
+:Gạt switch "Còn hàng/Hết hàng";
+|Hệ thống|
+:Gửi API cập nhật trạng thái;
+if (Thành công?) then (Có)
+  :Cập nhật UI + phát thông báo realtime;
+else (Không)
+  :Hiển thị lỗi và giữ trạng thái cũ;
+endif
+stop
+@enduml
+

@@ -1,0 +1,571 @@
+# API Endpoint Cheat Sheet (Postman Ready)
+
+> Mặc định base URL là `http://localhost:<APP_PORT>/api`.  
+> Các endpoint có **(auth)** yêu cầu header `Authorization: Bearer <accessToken>`.
+
+---
+
+## 1. Authentication
+
+### Đăng ký tài khoản
+`POST /auth/register`
+```json
+{
+  "name": "Nguyen Van A",
+  "email": "vana@example.com",
+  "phone": "0912345678",
+  "password": "Secret123",
+  "favoriteCuisines": ["Việt Nam", "Nhật Bản"],
+  "dietaryRestrictions": ["Ít đường"]
+}
+```
+**Response 201**
+```json
+{
+  "message": "Đăng ký tài khoản thành công.",
+  "data": {
+    "user": { "...": "..." },
+    "tokens": {
+      "accessToken": "...",
+      "refreshToken": "...",
+      "accessExpires": "2025-11-13T08:00:00.000Z",
+      "refreshExpires": "2025-12-13T08:00:00.000Z"
+    }
+  }
+}
+```
+
+**Đăng ký vendor** – 2 cách:
+
+**Cách 1:** dùng `managedRestaurantIds` (khi đã có ID do admin cung cấp)
+```json
+{
+  "name": "Chu Quan Bun Bo",
+  "email": "owner@example.com",
+  "password": "StrongPass123",
+  "accountType": "vendor",
+  "managedRestaurantIds": [
+    "6734784b9351f9dba2e4e001",
+    "6734784b9351f9dba2e4e00a"
+  ]
+}
+```
+- `accountType`: `user` (mặc định) hoặc `vendor`.
+- `managedRestaurantIds`: khi đã có `ObjectId` nhà hàng có sẵn.
+
+**Cách 2:** cho phép vendor tự tạo cửa hàng mới trong lúc đăng ký
+```json
+{
+  "name": "Chu Quan Bun Bo",
+  "email": "owner@example.com",
+  "password": "StrongPass123",
+  "accountType": "vendor",
+  "vendorRestaurant": {
+    "name": "Bún Bò 24h",
+    "description": "Bún bò Huế chuẩn vị nhà làm",
+    "phone": "0912345678",
+    "address": {
+      "street": "12 Nguyễn Huệ",
+      "ward": "Bến Nghé",
+      "district": "Quận 1",
+      "city": "TP. Hồ Chí Minh"
+    },
+    "categories": ["Cơm", "Đồ ăn nhanh"],
+    "tags": ["bun bo", "gia dinh"],
+    "delivery": { "baseFee": 15000, "estimatedTime": { "min": 20, "max": 35 } }
+  }
+}
+```
+- Backend sẽ tự tạo document `restaurants`, gán `ownerId`, `slug` và update `user.managedRestaurants` với `restaurantId` vừa tạo → mobile nhận `managedRestaurants` ngay ở response `register` / `GET /users/me`.
+
+### Đăng nhập
+`POST /auth/login`
+```json
+{ "identifier": "vana@example.com", "password": "Secret123" }
+```
+
+### Refresh token
+`POST /auth/refresh`
+```json
+{ "refreshToken": "<refreshToken>" }
+```
+
+### Đăng xuất *(auth)*
+`POST /auth/logout`
+
+### Quên mật khẩu
+`POST /auth/forgot-password`
+```json
+{ "email": "vana@example.com" }
+```
+
+### Đặt lại mật khẩu
+`POST /auth/reset-password`
+```json
+{
+  "email": "vana@example.com",
+  "code": "123456",
+  "newPassword": "NewSecret123"
+}
+```
+
+### Gửi mã xác minh email
+`POST /auth/verification/request`
+```json
+{ "email": "vana@example.com" }
+```
+
+### Xác minh email
+`POST /auth/verification/confirm`
+```json
+{ "email": "vana@example.com", "code": "654321" }
+```
+
+---
+
+## 2. User Profile & Address (auth)
+
+### Lấy thông tin cá nhân
+`GET /users/me`
+
+### Cập nhật thông tin
+`PUT /users/me`
+```json
+{
+  "name": "Nguyen Van A",
+  "avatarUrl": "https://example.com/avatar.png",
+  "phone": "0987654321",
+  "preferences": {
+    "favoriteCuisines": ["Hàn Quốc"],
+    "dietaryRestrictions": [],
+    "notifications": { "email": true, "sms": true, "push": false }
+  }
+}
+```
+
+### Địa chỉ giao hàng
+- `GET /users/me/addresses`
+- `POST /users/me/addresses`
+```json
+{
+  "label": "Nhà riêng",
+  "recipientName": "Nguyen Van A",
+  "phone": "0987654321",
+  "street": "123 Nguyễn Huệ",
+  "ward": "Phường Bến Nghé",
+  "district": "Quận 1",
+  "city": "TP. Hồ Chí Minh",
+  "note": "Nhà có chó",
+  "isDefault": true
+}
+```
+- `PUT /users/me/addresses/:addressId`
+- `DELETE /users/me/addresses/:addressId`
+- `PATCH /users/me/addresses/:addressId/default`
+
+### Cấp quyền vendor / cập nhật managedRestaurants *(admin auth)*
+`PATCH /users/{userId}/managed-restaurants`
+```json
+{
+  "restaurantIds": ["6734784b9351f9dba2e4e001"],
+  "mode": "replace"
+}
+```
+- `mode = replace` (mặc định): thay toàn bộ danh sách (cho phép mảng rỗng để thu hồi quyền).
+- `mode = append`: thêm các `restaurantIds` vào danh sách hiện có.
+- `mode = remove`: gỡ các `restaurantIds` cụ thể khỏi danh sách hiện có.
+- Endpoint yêu cầu tài khoản có `role = "admin"`. Sau khi cập nhật, `GET /users/me` sẽ phản ánh `managedRestaurants` mới nhất để mobile điều hướng đúng dashboard.
+
+---
+
+## 3. Restaurants & Menu
+
+### Tìm kiếm nhà hàng
+`GET /restaurants`
+- Query gợi ý: `?q=pho&cuisine=Việt Nam&ratingMin=4&sortBy=rating&limit=10&page=1`
+- **Response**: Mỗi restaurant trong danh sách có field `rating: { average: number, totalReviews: number }`
+
+### Nhà hàng nổi bật
+`GET /restaurants/featured`
+- **Logic**: Ưu tiên lấy restaurants có `isFeatured: true`. Nếu không đủ số lượng (mặc định 6), sẽ lấy thêm các restaurants khác theo thứ tự: `popularityScore` → `rating.average` → `createdAt`.
+- **Điều kiện**: Chỉ lấy restaurants có `status: "active"` và `isAcceptingOrders: true`.
+- **Response**: Mỗi restaurant có field `rating: { average: number, totalReviews: number }`
+
+### Tìm món ăn
+`GET /restaurants/menu/items`
+- Ví dụ: `?search=ga&priceMax=150000`
+- Hỗ trợ `category=<tên hoặc key danh mục>` với các giá trị: `com`, `bun-pho-chao`, `hai-san`, `coffee`, `do-an-nhe`, `do-an-nhanh` (hoặc bản tiếng Việt tương ứng `Cơm`, `Bún - Phở - Cháo`, …)
+- **Response**: 
+  - Mỗi menuItem có field `rating: { average: number, totalReviews: number }`
+  - Mỗi menuItem có field `restaurant` với thông tin nhà hàng, bao gồm `rating: { average: number, totalReviews: number }`
+
+### Danh mục món ăn chuẩn
+`GET /restaurants/menu/categories`
+- Response mẫu:
+```json
+{
+  "message": "Lấy danh mục món ăn thành công.",
+  "data": [
+    { "key": "com", "name": "Cơm" },
+    { "key": "bun-pho-chao", "name": "Bún - Phở - Cháo" },
+    { "key": "hai-san", "name": "Hải sản" },
+    { "key": "coffee", "name": "Coffee" },
+    { "key": "do-an-nhe", "name": "Đồ ăn nhẹ" },
+    { "key": "do-an-nhanh", "name": "Đồ ăn nhanh" }
+  ]
+}
+```
+
+### Chi tiết nhà hàng
+`GET /restaurants/{restaurantId}`
+- **Response**: Restaurant object có field `rating: { average: number, totalReviews: number }`
+
+### Thực đơn nhà hàng
+`GET /restaurants/{restaurantId}/menu`
+- **Response**: 
+  - `restaurant.rating: { average: number, totalReviews: number }`
+  - Mỗi menuItem trong `menuItems` có field `rating: { average: number, totalReviews: number }`
+
+### Đánh giá nhà hàng
+`GET /restaurants/{restaurantId}/reviews`
+
+---
+
+## 4. Orders (auth)
+
+### Tạo đơn hàng COD
+`POST /orders`
+```json
+{
+  "restaurantId": "6734784b9351f9dba2e4e001",
+  "items": [
+    {
+      "menuItemId": "6734784b9351f9dba2e4e101",
+      "quantity": 2,
+      "selectedOptions": [
+        { "name": "Trứng ốp la", "price": 8000 }
+      ],
+      "notes": "Ít cay"
+    }
+  ],
+  "paymentMethod": "COD",
+  "promotionCode": "SALE20",
+  "addressId": "6734784b9351f9dba2e4f777"
+}
+```
+
+### Lịch sử đơn hàng
+`GET /orders`
+- Query: `?status=delivered&restaurantId=...&page=1&limit=10`
+- **Response 200**:
+```json
+{
+  "message": "Lấy danh sách đơn hàng thành công.",
+  "data": {
+    "items": [
+      {
+        "_id": "6734784b9351f9dba2e4f777",
+        "status": "preparing",
+        "restaurantId": "6734784b9351f9dba2e4e001",
+        "restaurant": {
+          "name": "Bún Bò Huế 24h",
+          "slug": "bun-bo-hue-24h",
+          "heroImage": "https://..."
+        },
+        "restaurantName": "Bún Bò Huế 24h",
+        "items": [...],
+        "charges": {
+          "subtotal": 150000,
+          "discount": 30000,
+          "deliveryFee": 20000,
+          "total": 140000
+        },
+        "createdAt": "2025-11-14T10:00:00.000Z",
+        "updatedAt": "2025-11-14T10:05:00.000Z"
+      }
+    ],
+    "total": 25
+  }
+}
+```
+- **Lưu ý**: Mỗi order có thêm `restaurant` object và `restaurantName` để mobile dễ hiển thị.
+
+### Chi tiết đơn
+`GET /orders/{orderId}`
+- **Response 200**:
+```json
+{
+  "message": "Lấy thông tin đơn hàng thành công.",
+  "data": {
+    "_id": "6734784b9351f9dba2e4f777",
+    "status": "delivered",
+    "statusHistory": [
+      {
+        "status": "pending",
+        "note": "Đơn hàng được tạo",
+        "createdAt": "2025-11-14T10:00:00.000Z"
+      },
+      {
+        "status": "confirmed",
+        "note": "Nhà hàng đã xác nhận",
+        "createdAt": "2025-11-14T10:02:00.000Z"
+      },
+      {
+        "status": "preparing",
+        "note": "Đang chuẩn bị",
+        "createdAt": "2025-11-14T10:05:00.000Z"
+      },
+      {
+        "status": "delivered",
+        "note": "Khách hàng đã xác nhận nhận hàng",
+        "createdAt": "2025-11-14T10:30:00.000Z"
+      }
+    ],
+    "restaurantId": "6734784b9351f9dba2e4e001",
+    "restaurant": {
+      "name": "Bún Bò Huế 24h",
+      "slug": "bun-bo-hue-24h",
+      "heroImage": "https://..."
+    },
+    "restaurantName": "Bún Bò Huế 24h",
+    "items": [...],
+    "deliveryAddress": {...},
+    "charges": {...},
+    "payment": {
+      "method": "COD",
+      "status": "paid"
+    },
+    "estimatedDeliveryTime": {
+      "min": 20,
+      "max": 45
+    },
+    "review": {
+      "restaurant": {
+        "_id": "6734784b9351f9dba2e4f888",
+        "rating": 5,
+        "comment": "Nhà hàng rất tốt, giao hàng nhanh!",
+        "photos": ["https://i.imgur.com/abc123.jpg"],
+        "tags": ["Giao nhanh", "Ngon"],
+        "createdAt": "2025-11-14T10:35:00.000Z"
+      },
+      "items": {
+        "6734784b9351f9dba2e4e101": {
+          "_id": "6734784b9351f9dba2e4f999",
+          "rating": 5,
+          "comment": "Món này rất ngon!",
+          "createdAt": "2025-11-14T10:36:00.000Z"
+        }
+      }
+    },
+    "hasReview": true,
+    "createdAt": "2025-11-14T10:00:00.000Z",
+    "updatedAt": "2025-11-14T10:30:00.000Z"
+  }
+}
+```
+- **Trạng thái đơn hàng**: `pending` → `confirmed` → `preparing` → `delivering` → `delivered` (hoặc `cancelled` ở bất kỳ giai đoạn nào trước `delivered`).
+- **Thông tin đánh giá**:
+  - `review.restaurant`: Review cho nhà hàng (null nếu chưa đánh giá)
+  - `review.items`: Object map `menuItemId` → review (rỗng nếu chưa có review nào)
+  - `hasReview`: `true` nếu đã có ít nhất 1 review (restaurant hoặc item), `false` nếu chưa có
+  - Mobile có thể dùng `hasReview` để ẩn/hiện nút đánh giá
+
+### Hủy đơn (user)
+`PATCH /orders/{orderId}/status`
+```json
+{ "status": "cancelled", "note": "Đổi ý đặt món" }
+```
+- User chỉ có thể hủy đơn của chính mình, và chỉ khi đơn chưa ở trạng thái `delivered`.
+
+### Tiến trình đơn
+`GET /orders/{orderId}/timeline`
+- **Response 200**: Trả về mảng `statusHistory` với các mốc thời gian thay đổi trạng thái:
+```json
+{
+  "message": "Lấy tiến trình đơn hàng thành công.",
+  "data": [
+    {
+      "status": "pending",
+      "note": "Đơn hàng được tạo",
+      "createdAt": "2025-11-14T10:00:00.000Z"
+    },
+    {
+      "status": "confirmed",
+      "note": "Nhà hàng đã xác nhận",
+      "createdAt": "2025-11-14T10:02:00.000Z"
+    },
+    {
+      "status": "preparing",
+      "note": "Đang chuẩn bị",
+      "createdAt": "2025-11-14T10:05:00.000Z"
+    }
+  ]
+}
+```
+
+### Xác nhận đã nhận hàng (user) *(auth)*
+`POST /orders/{orderId}/confirm-delivery`
+- **Mô tả**: User xác nhận đã nhận được hàng. Chỉ có thể xác nhận khi đơn hàng đang ở trạng thái `delivering`.
+- **Response 200**:
+```json
+{
+  "message": "Xác nhận đã nhận hàng thành công.",
+  "data": {
+    "_id": "6734784b9351f9dba2e4f777",
+    "status": "delivered",
+    "deliveredAt": "2025-11-14T10:30:00.000Z",
+    "statusHistory": [
+      {
+        "status": "delivered",
+        "note": "Khách hàng đã xác nhận nhận hàng",
+        "createdAt": "2025-11-14T10:30:00.000Z"
+      }
+    ],
+    ...
+  }
+}
+```
+- **Lưu ý**: Sau khi xác nhận, đơn hàng sẽ chuyển sang trạng thái `delivered` và user có thể đánh giá nhà hàng/món ăn.
+
+---
+
+## 5. Vendor Operations (auth + managedRestaurants)
+
+### Xem đơn của nhà hàng
+`GET /vendor/orders`
+- Query: `?status=preparing&fromDate=2025-11-13&toDate=2025-11-20&page=1`
+
+### Cập nhật trạng thái đơn
+`PATCH /vendor/orders/{orderId}/status`
+```json
+{ "status": "delivering", "note": "Đã giao cho shipper nội bộ" }
+```
+Trạng thái hợp lệ: `confirmed`, `preparing`, `delivering`, `delivered`, `cancelled`.
+
+### Quản lý món ăn (vendor)
+
+#### Danh sách món
+`GET /vendor/menu-items`
+- Query: `?restaurantId=...&category=...&search=...&availableOnly=true`
+
+#### Thêm món mới
+`POST /vendor/menu-items`
+```json
+{
+  "restaurantId": "6734784b9351f9dba2e4e001", // optional nếu vendor chỉ có 1 nhà hàng
+  "name": "Cơm tấm sườn bì",
+  "description": "Sườn nướng mật ong, bì, chả, mỡ hành",
+  "category": "com",
+  "price": 45000,
+  "imageUrl": "https://cdn.example.com/images/com-tam.jpg",
+  "tags": ["com", "suon", "bua-trua"],
+  "isAvailable": true,
+  "spiceLevel": "normal",
+  "options": [
+    { "name": "Trứng ốp la", "priceDelta": 8000, "isDefault": false }
+  ],
+  "addons": [
+    { "name": "Thêm chả", "price": 15000 }
+  ]
+}
+```
+- `imageUrl` là link ảnh do người dùng cung cấp (không upload file).
+- `category` chấp nhận cả `key` hoặc tên (ví dụ `"com"` hoặc `"Cơm"`). 
+- Nếu vendor quản lý nhiều nhà hàng, phải truyền `restaurantId` thuộc quyền sở hữu của họ. Nếu không, hệ thống tự lấy nhà hàng đầu tiên trong danh sách `managedRestaurants`.
+
+#### Cập nhật món
+`PUT /vendor/menu-items/{menuItemId}`
+```json
+{
+  "name": "Cơm tấm sườn bì (đã cập nhật)",
+  "price": 50000,
+  "isAvailable": false,
+  "description": "Mô tả mới"
+}
+```
+- Chỉ cần truyền các field muốn cập nhật.
+
+#### Xóa món
+`DELETE /vendor/menu-items/{menuItemId}`
+
+### Quản lý trạng thái nhận đơn (vendor)
+
+#### Bật/tắt nhận đơn
+`PATCH /vendor/restaurants/{restaurantId}/accepting-orders`
+```json
+{
+  "isAcceptingOrders": false
+}
+```
+- Khi `isAcceptingOrders: false`, nhà hàng và các món ăn sẽ không hiển thị trong kết quả tìm kiếm cho khách hàng.
+- Mặc định khi tạo nhà hàng mới, `isAcceptingOrders: true`.
+
+---
+
+## 6. Promotions
+
+### Danh sách khuyến mãi
+`GET /promotions`
+- Query: `?restaurantId=...&autoApply=true`
+
+### Kiểm tra mã giảm giá
+`POST /promotions/validate`
+```json
+{ "code": "SALE20", "restaurantId": "6734784b9351f9dba2e4e001", "subtotal": 250000 }
+```
+
+---
+
+## 7. Reviews
+
+### Gửi đánh giá (sau khi đơn giao thành công) *(auth)*
+`POST /reviews`
+```json
+{
+  "restaurantId": "6734784b9351f9dba2e4e001",
+  "menuItemId": "6734784b9351f9dba2e4e101",
+  "orderId": "6734784b9351f9dba2e4f444",
+  "rating": 5,
+  "comment": "Món ăn ngon, giao nhanh!",
+  "photos": ["https://i.imgur.com/abc123.jpg"],
+  "tags": ["Giao nhanh", "Ngon"]
+}
+```
+- **Yêu cầu**:
+  - Đơn hàng phải có `status: "delivered"` (user phải xác nhận đã nhận hàng trước).
+  - Mỗi đơn hàng chỉ được đánh giá **1 lần duy nhất**.
+  - `orderId` là bắt buộc và phải thuộc về user đang đánh giá.
+  - `restaurantId` phải khớp với `restaurantId` của đơn hàng.
+  - `rating` phải từ 1-5.
+
+### Danh sách đánh giá
+- `GET /reviews/restaurants/{restaurantId}`
+- `GET /reviews/menu-items/{menuItemId}`
+- `GET /reviews/me` *(auth)*
+
+---
+
+## 8. Seed dữ liệu mẫu
+1. Cập nhật `.env` với `MONGODB_URI`, `DATABASE_NAME`, `REDIS_HOST`, thông tin email.
+2. `npm install`
+3. `node scripts/seedRestaurants.js`
+   - Sinh 50 nhà hàng + 500 món ăn vào collection `restaurants` và `menuItems`.
+   - Chạy nhiều lần sẽ nhân đôi dữ liệu (xóa collection trước nếu cần).
+4. Gán nhà hàng cho tài khoản vendor (Mongo shell):
+```js
+db.users.updateOne(
+  { "user.email": "vendor@example.com" },
+  { $set: { "user.managedRestaurants": [ObjectId("6734784b9351f9dba2e4e001")] } }
+)
+```
+5. Nếu đã có dữ liệu cũ, chạy `node scripts/updateMenuCategories.js` để chuẩn hóa danh mục món ăn theo bộ chuẩn (Cơm, Bún - Phở - Cháo, Hải sản, Coffee, Đồ ăn nhẹ, Đồ ăn nhanh).
+
+---
+
+## 9. Headers chung cho Postman
+- `Content-Type: application/json`
+- `Authorization: Bearer <accessToken>` (với endpoint yêu cầu đăng nhập)
+- Optional: `x-request-id`, `accept-language` tùy hệ thống front-end.
+
+
+

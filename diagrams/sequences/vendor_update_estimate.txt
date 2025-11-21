@@ -1,0 +1,51 @@
+title: Trình tự cập nhật thời gian giao dự kiến (Vendor)
+
+participant Vendor as "Chủ cửa hàng"
+participant UI as "OrderDetailSheet"
+participant Controller as "VendorOrdersController"
+participant Repo as "VendorRepository"
+participant API as "ApiClient / Backend"
+participant DB as "Database"
+
+Vendor->UI: Nhập min/max, chuẩn bị, ghi chú
+UI->Controller: 1. submitEstimate(orderId, data)
+Controller->Repo: 2. updateDeliveryEstimate(...)
+Repo->API: 3. PATCH /vendor/orders/{id}/estimate
+API->DB: 4. Lưu thời gian ước tính
+DB-->API: 5. Kết quả
+API-->Repo: 6. Response
+
+alt Dữ liệu hợp lệ
+  Repo-->Controller: 7. Success
+  Controller->UI: 8. SnackBar "Đã cập nhật"
+  UI->Vendor: 9. Hiển thị thời gian mới
+else Thiếu thông tin / lỗi server
+  Repo-->Controller: 7a. Lỗi chi tiết
+  Controller->UI: 8a. Hiển thị cảnh báo và giữ giá trị nhập
+end
+
+newpage Hoạt động (PlantUML): Vendor cập nhật thời gian giao
+@startuml
+|Chủ cửa hàng|
+start
+:Nhập thời gian min/max, ghi chú;
+|Hệ thống|
+:Hiển thị form chi tiết đơn;
+|Chủ cửa hàng|
+:Nhấn "Cập nhật";
+|Hệ thống|
+:Kiểm tra dữ liệu ước tính;
+if (Hợp lệ?) then (Có)
+  :Lưu thời gian ước tính mới;
+  :Thông báo cập nhật thành công;
+else (Không)
+  :Hiển thị lỗi, giữ giá trị cũ;
+  |Chủ cửa hàng|
+  repeat
+    :Chỉnh sửa dữ liệu;
+    |Hệ thống|
+    :Kiểm tra lại;
+  repeat while (Còn lỗi?)
+endif
+stop
+@enduml

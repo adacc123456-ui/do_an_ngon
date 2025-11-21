@@ -1,0 +1,54 @@
+title: Trình tự đánh giá đơn hàng (Khách hàng)
+
+participant Customer as "Khách hàng"
+participant DetailUI as "OrderDetailPage"
+participant ReviewUI as "ReviewOrderPage"
+participant Bloc as "ReviewBloc"
+participant Repo as "ReviewRepository"
+participant API as "ApiClient / Backend"
+participant DB as "Database"
+
+Customer->DetailUI: Nhấn "Đánh giá đơn"
+DetailUI->ReviewUI: 1. Mở form ReviewOrderPage (extra: order)
+ReviewUI->Bloc: 2. Submit review
+Bloc->Repo: 3. Build payload
+Repo->API: 4. POST /orders/{id}/review
+API->DB: 5. Lưu đánh giá nhà hàng & món
+DB-->API: 6. Kết quả
+API-->Repo: 7. Response
+
+alt Review hợp lệ
+  Repo-->Bloc: 8. Success data
+  Bloc->ReviewUI: 9. Thông báo thành công
+  ReviewUI->DetailUI: 10. Pop & reload đơn
+  DetailUI->Customer: 11. Hiển thị trạng thái "Đã đánh giá"
+else Thiếu rating hoặc lỗi server
+  Repo-->Bloc: 8a. Thông báo lỗi
+  Bloc->ReviewUI: 9a. Hiển thị lỗi + giữ dữ liệu nhập
+end
+
+newpage Hoạt động (PlantUML): Khách đánh giá đơn
+@startuml
+|Người dùng|
+start
+:Mở chi tiết đơn và chọn "Đánh giá";
+|Hệ thống|
+:Hiển thị form đánh giá;
+|Người dùng|
+:Nhập số sao + nhận xét, nhấn "Gửi";
+|Hệ thống|
+:Kiểm tra dữ liệu đánh giá;
+if (Hợp lệ?) then (Có)
+  :Lưu đánh giá vào CSDL;
+  :Thông báo đánh giá thành công;
+else (Không)
+  :Hiển thị thông báo lỗi;
+  |Người dùng|
+  repeat
+    :Điều chỉnh nội dung đánh giá;
+    |Hệ thống|
+    :Kiểm tra lại dữ liệu;
+  repeat while (Còn lỗi?)
+endif
+stop
+@enduml

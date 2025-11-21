@@ -1,0 +1,53 @@
+title: Yêu thích - tải danh sách & lọc cục bộ
+
+participant Customer as "Khách hàng"
+participant FavUI as "FavoritesPage"
+participant FavBloc as "FavoritesBloc"
+participant FavRepo as "FavoritesRepository"
+participant Api as "ApiClient"
+participant Backend as "Favorites Service"
+
+Customer->FavUI: Mở tab Yêu thích
+FavUI->FavBloc: FetchFavoritesEvent()
+FavBloc->FavRepo: getFavorites()
+FavRepo->Api: GET /favorites
+Api->Backend: Truy vấn danh sách món yêu thích
+Backend-->Api: JSON danh sách món
+Api-->FavRepo: Response
+FavRepo-->FavBloc: List<Food>
+FavBloc->FavUI: state = FavoritesLoaded(items)
+FavUI->Customer: Hiển thị danh sách + hình ảnh
+
+opt Người dùng nhập vào ô tìm kiếm cục bộ
+  Customer->FavUI: Gõ từ khóa "bun"
+  FavUI->FavUI: setState(query)\n_filterFavorites()
+  FavUI->FavUI: Lọc danh sách trong state\n(theo tên món hoặc nhà hàng)
+  FavUI->Customer: Hiển thị danh sách đã lọc\n(không gọi API)
+end
+
+alt Không tìm thấy kết quả
+  FavUI->Customer: Hiển thị "Không có món phù hợp"
+end
+
+newpage Hoạt động (PlantUML): Quản lý danh sách yêu thích
+@startuml
+|Khách hàng|
+start
+:Mở tab Yêu thích;
+|Hệ thống|
+:Tải danh sách món yêu thích từ API;
+|Khách hàng|
+:Xem danh sách hiển thị;
+if (Nhập từ khóa lọc?) then (Có)
+  |Khách hàng|
+  :Nhập từ khóa;
+  |Hệ thống|
+  :Lọc danh sách cục bộ theo tên/nhà hàng;
+  if (Có kết quả?) then (Có)
+    :Hiển thị danh sách đã lọc;
+  else (Không)
+    :Thông báo "Không có món phù hợp";
+  endif
+endif
+stop
+@enduml

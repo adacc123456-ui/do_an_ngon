@@ -1,0 +1,62 @@
+title: Trình tự quản lý đơn hàng (Vendor)
+
+participant Vendor as "Chủ cửa hàng"
+participant UI as "VendorOrdersPage"
+participant Controller as "VendorOrdersController"
+participant Repo as "VendorRepository"
+participant API as "ApiClient / Backend"
+participant DB as "Database"
+
+Vendor->UI: Mở tab Đơn hàng
+UI->Controller: 1. loadOrders(status)
+loop 10s auto-refresh
+  Controller->Repo: 2. getVendorOrders(status)
+  Repo->API: 3. GET /vendor/orders
+  API->DB: 4. Truy vấn đơn hàng vendor
+  DB-->API: 5. Dữ liệu đơn
+  API-->Repo: 6. Response
+  Repo-->Controller: 7. Map JSON -> list
+  Controller->UI: 8. Hiển thị danh sách
+end
+
+Vendor->UI: Chọn đơn "Nhận đơn"
+UI->Controller: 9. updateStatus(orderId,"confirmed")
+Controller->Repo: 10. PATCH /vendor/orders/{id}/status
+Repo->API: 11. Gửi cập nhật
+API->DB: 12. Lưu trạng thái mới
+DB-->API: 13. Kết quả
+API-->Repo: 14. Success/Fail
+
+alt Thành công
+  Repo-->Controller: 15. OK
+  Controller->UI: 16. SnackBar "Đã cập nhật"
+else Lỗi
+  Repo-->Controller: 15a. Lỗi
+  Controller->UI: 16a. Hiển thị thông báo lỗi
+end
+
+newpage Hoạt động (PlantUML): Vendor quản lý đơn hàng
+@startuml
+|Chủ cửa hàng|
+start
+:Đăng nhập và mở tab Đơn hàng;
+|Hệ thống|
+:Tự động tải danh sách đơn (10s/lần);
+|Chủ cửa hàng|
+:Chọn đơn và nhấn "Nhận đơn"/cập nhật trạng thái;
+|Hệ thống|
+:Gửi yêu cầu cập nhật trạng thái;
+if (Thành công?) then (Có)
+  :Cập nhật trạng thái trong CSDL;
+  :Thông báo "Đã cập nhật";
+else (Không)
+  :Hiển thị lỗi cập nhật;
+  |Chủ cửa hàng|
+  repeat
+    :Kiểm tra lại thông tin/ thử lại;
+    |Hệ thống|
+    :Gửi lại yêu cầu cập nhật;
+  repeat while (Vẫn lỗi?)
+endif
+stop
+@enduml

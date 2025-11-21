@@ -1,0 +1,66 @@
+title: Trình tự quản lý món ăn (Vendor)
+
+participant Vendor as "Chủ cửa hàng"
+participant UI as "VendorMenuItemsPage"
+participant Controller as "VendorMenuController"
+participant Repo as "VendorRepository"
+participant API as "ApiClient / Backend"
+participant DB as "Database"
+
+== Tải danh sách món ==
+Vendor->UI: Mở trang Danh sách món
+UI->Controller: 1. loadMenu(restaurantId)
+Controller->Repo: 2. getVendorMenuItems(...)
+Repo->API: 3. GET /vendor/menu-items
+API->DB: 4. Query menu items
+DB-->API: 5. Danh sách món
+API-->Repo: 6. JSON data
+Repo-->Controller: 7. Map model
+Controller->UI: 8. Hiển thị danh sách + rating
+
+== Thêm món mới ==
+Vendor->UI: Nhấn "Thêm món"
+UI->Controller: 9. submitNewItem(formData)
+Controller->Repo: 10. POST /vendor/menu-items
+Repo->API: 11. Gửi thông tin món
+API->DB: 12. Lưu món mới
+DB-->API: 13. Kết quả
+API-->Repo: 14. Success/Fail
+
+alt Thành công
+  Repo-->Controller: 15. OK + item
+  Controller->UI: 16. Cập nhật danh sách + thông báo
+else Dữ liệu không hợp lệ
+  Repo-->Controller: 15a. Lỗi validation
+  Controller->UI: 16a. Hiển thị lỗi từng trường
+end
+
+newpage Hoạt động (PlantUML): Vendor quản lý món
+@startuml
+|Chủ cửa hàng|
+start
+:Mở trang Danh sách món;
+|Hệ thống|
+:Tải danh sách món + rating;
+|Chủ cửa hàng|
+:Chọn "Thêm món" hoặc chỉnh sửa;
+|Hệ thống|
+:Hiển thị form nhập món;
+|Chủ cửa hàng|
+:Nhập thông tin món và nhấn "Lưu";
+|Hệ thống|
+:Kiểm tra dữ liệu món;
+if (Hợp lệ?) then (Có)
+  :Lưu món mới/cập nhật vào CSDL;
+  :Thông báo thành công + refresh danh sách;
+else (Không)
+  :Hiển thị lỗi từng trường;
+  |Chủ cửa hàng|
+  repeat
+    :Điều chỉnh thông tin món;
+    |Hệ thống|
+    :Kiểm tra lại;
+  repeat while (Còn lỗi?)
+endif
+stop
+@enduml

@@ -1,0 +1,52 @@
+title: Trình tự đặt món & thanh toán (Khách hàng)
+
+participant Customer as "Khách hàng"
+participant UI as "App Mobile\n(HomePage)"
+participant Bloc as "Cart / Checkout Bloc"
+participant Repo as "OrderRepository"
+participant API as "ApiClient / Backend"
+participant DB as "Database"
+
+Customer->UI: Chọn sản phẩm và mở Giỏ hàng
+UI->Bloc: 1. Nhấn "Đặt món"
+Bloc->Repo: 2. Tạo payload đơn hàng
+Repo->API: 3. POST /orders
+API->DB: 4. Lưu đơn hàng
+DB-->API: 5. Trả về kết quả
+API-->Repo: 6. Response (success/fail)
+
+alt Đơn hàng hợp lệ
+  Repo-->Bloc: 7. Trả dữ liệu đơn hàng
+  Bloc->UI: 8. Hiển thị trạng thái "Đang chờ xác nhận"
+  UI->Customer: 9. Thông báo đặt món thành công
+else Lỗi (thiếu info / hết món)
+  Repo-->Bloc: 7a. Lỗi chi tiết
+  Bloc->UI: 8a. Hiển thị Snackbar lỗi
+  UI->Customer: 9a. Yêu cầu kiểm tra lại thông tin
+end
+
+newpage Hoạt động (PlantUML): Đặt món & thanh toán
+@startuml
+|Người dùng|
+start
+:Đăng nhập, chọn món và nhấn "Đặt món";
+|Hệ thống|
+:Hiển thị giao diện xác nhận đơn;
+|Người dùng|
+:Nhập thông tin giao hàng và nhấn "Lưu/Đặt món";
+|Hệ thống|
+:Kiểm tra thông tin đơn hàng;
+if (Thông tin hợp lệ?) then (Có)
+  :Lưu đơn hàng vào CSDL;
+  :Thông báo đặt món thành công;
+else (Không)
+  :Hiển thị thông báo lỗi;
+  |Người dùng|
+  repeat
+    :Cập nhật thông tin đơn;
+    |Hệ thống|
+    :Kiểm tra lại thông tin;
+  repeat while (Vẫn không hợp lệ?)
+endif
+stop
+@enduml

@@ -1,0 +1,96 @@
+# Backend Handoff Notes (Food Delivery)
+
+Use this document when kicking off the Flutter/mobile project so the assistant has all necessary context from the Node.js + MongoDB backend.
+
+## Tech Stack & Setup
+- Backend: Node.js 20+, Express 4, MongoDB Atlas, Redis (OTP/email cooldown), JWT auth.
+- Important env variables: `MONGODB_URI`, `DATABASE_NAME`, `ACCESS_TOKEN_SECRET_SIGNATURE`, `REFRESH_TOKEN_SECRET_SIGNATURE`, `ACCESS_TOKEN_LIFETIME` (default `15m`), `REFRESH_TOKEN_LIFETIME` (default `30d`), `REDIS_HOST`, email SMTP credentials.
+- Server entry: `src/server.js` (CORS enabled, JSON middleware, routes mounted at `/api`). Run via `npm run dev` (babel-node + nodemon) or `npm run production` (build + run).
+- Lint: `npx eslint src --ext js` (some legacy console warnings in email/redis providers).
+
+## Core Collections (MongoDB)
+- `users`: stores auth info, tokens, profile, addresses, preferences, `emailVerified`, `phoneVerified`, `managedRestaurants` (array of ObjectId for vendor accounts), security metadata.
+- `restaurants`: full restaurant profile (address, delivery settings, rating, categories, etc.). Vendor self-registration sẽ tạo document mới với `ownerId = user._id`, slug tự sinh, `status: "active"` mặc định.
+- `menuItems`: dishes linked to `restaurantId`.
+- `orders`: order details, shipping info, status history, payment method (COD), promotion snapshot.
+- `promotions`: discount codes, usage counters, scope.
+- `reviews`: user ratings/comments after delivered orders.
+
+Redis keys used for OTP/verification and cooldowns:
+- Prefix `password_reset:<email>` for reset code (6-digit numeric, TTL 5 minutes by default).
+- Prefix `email_verify:<email>` for email verification code.
+- Cooldown keys `password_reset:<email>:cooldown` and `email_verify:<email>:cooldown` (60s).
+
+## Authentication Flow
+- Register (`POST /api/auth/register`) → returns user + tokens, triggers verification email.  
+  - Vendor có thể truyền `managedRestaurantIds` (đã có dữ liệu trước) **hoặc** `vendorRestaurant` để hệ thống tự tạo nhà hàng mới và gán quyền quản lý ngay lập tức.
+- Login (`POST /api/auth/login`) → returns user + tokens. `identifier` can be email or phone.
+- Refresh (`POST /api/auth/refresh`) → new token pair (requires stored refresh token match).
+- Logout (`POST /api/auth/logout`) → clears stored tokens (auth header required).
+- Forgot password (`POST /api/auth/forgot-password`) → sends 6-digit OTP via email with 5-min expiry.
+- Reset password (`POST /api/auth/reset-password`) → verify OTP, update password hash.
+- Email verification (`POST /api/auth/verification/request` and `/confirm`) → state saved in `users.emailVerified`.
+- JWT payload: `{ sub: userId, role, email }`. Access token lifetime ~15m, refresh ~30d (configurable).
+
+## User/Profile APIs (auth required)
+- `GET /api/users/me` – retrieve sanitized user (token & password removed but includes `managedRestaurants` list).
+- `PUT /api/users/me` – update profile, phone uniqueness enforced.
+- Address management: CRUD under `/api/users/me/addresses`, including default flag.
+
+## Restaurant & Menu APIs (public GET endpoints)
+- `GET /api/restaurants` – search/filter/sort (query params: `q`, `cuisine`, `tags`, `priceMin/Max`, `ratingMin`, `distanceMax`, `district`, `city`, `sortBy`, `sortOrder`, pagination). **Chỉ trả về restaurants có `isAcceptingOrders: true` và `status: "active"`**.
+- `GET /api/restaurants/featured` – highlight list. **Chỉ trả về restaurants đang nhận đơn**.
+- `GET /api/restaurants/menu/items` – dish search across restaurants (query supports `search`, `restaurantIds`, `category`, `priceMin`, `priceMax`, `tags`, `isAvailable`, sorting/pagination). `category` chấp nhận cả `key` (`com`, `bun-pho-chao`, …) hoặc tên tiếng Việt tương ứng. Response trả về mỗi item kèm `restaurant` info (id, name, slug, address, heroImage, phone) và `categoryKey`. **Chỉ trả về menu items từ restaurants đang nhận đơn**.
+- `GET /api/restaurants/menu/categories` – static list of standardized categories `{ key, name }`: Cơm, Bún - Phở - Cháo, Hải sản, Coffee, Đồ ăn nhẹ, Đồ ăn nhanh.
+- `GET /api/restaurants/:restaurantId` – restaurant detail.
+- `GET /api/restaurants/:restaurantId/menu` – categories + menu items by restaurant.
+- `GET /api/restaurants/:restaurantId/reviews` – reviews listing.
+
+## Orders & Promotions (auth required)
+- `POST /api/orders` – create COD order (validate menu items belong to restaurant, apply promotion if valid, compute totals).
+- `GET /api/orders` – history for current user (filter by status, restaurant, pagination).
+- `GET /api/orders/:orderId` – detail (only owner can see).
+- `PATCH /api/orders/:orderId/status` – user can cancel own order; admin can change broader statuses (reuses general order model update service).
+- `GET /api/orders/:orderId/timeline` – status history array.
+- Promotions: `GET /api/promotions`, `POST /api/promotions/validate` (body: `code`, `restaurantId`, `subtotal` → returns discount amount, total after discount).
+
+## Vendor-facing APIs (restaurant staff; auth + managedRestaurants required)
+- `GET /api/vendor/orders` – list orders for restaurants the user manages; filters `status`, `fromDate`, `toDate`, pagination.
+- `PATCH /api/vendor/orders/:orderId/status` – allowed statuses: `confirmed`, `preparing`, `delivering`, `delivered`, `cancelled`. Updates order + appends to status history.
+- **Menu management**: `GET /api/vendor/menu-items` (list), `POST /api/vendor/menu-items` (create), `PUT /api/vendor/menu-items/:menuItemId` (update), `DELETE /api/vendor/menu-items/:menuItemId` (delete). Payload yêu cầu `name`, `category`, `price`, `imageUrl` (link do user tự lưu trữ), tags/options tùy chọn. Nếu vendor quản lý nhiều nhà hàng, truyền `restaurantId`; ngược lại backend dùng nhà hàng đầu tiên.
+- **Restaurant settings**: `PATCH /api/vendor/restaurants/:restaurantId/accepting-orders` với body `{ "isAcceptingOrders": boolean }`. Khi `isAcceptingOrders: false`, nhà hàng và menu items sẽ không xuất hiện trong search results cho khách hàng. Mặc định `true` khi tạo nhà hàng mới.
+- Quyền vendor hình thành theo 2 cách: (1) Đăng ký với `vendorRestaurant` → backend tạo nhà hàng + gán quyền tự động, (2) admin sử dụng `PATCH /api/users/{userId}/managed-restaurants` với `mode` (`replace`, `append`, `remove`). Backend sẽ tự động gán/bỏ `role = "vendor"` theo danh sách hiện tại.
+
+## Reviews
+- Create review (`POST /api/reviews`): requires delivered order, ensures unique per order/menu combination. Updates restaurant/menu metrics.
+- Listing: `/api/reviews/restaurants/:id`, `/api/reviews/menu-items/:id`, `/api/reviews/me`.
+
+## Order Status Reference (`src/utils/constants.js`)
+```
+pending → confirmed → preparing → delivering → delivered
+            ↘ cancelled (allowed anytime before delivered)
+```
+
+## Seed Data Instructions
+1. Ensure `.env` has Mongo + Redis + email configs.
+2. `npm install`
+3. `node scripts/seedRestaurants.js` (uses `@faker-js/faker` to create 50 restaurants and 500 menu items with standardized categories).
+4. For vendor accounts, dùng API `PATCH /api/users/{userId}/managed-restaurants` (role admin) hoặc truyền ngay `accountType: "vendor"` + `managedRestaurantIds`/`vendorRestaurant` khi đăng ký (backend auto tạo nhà hàng nếu cần).
+5. Với dữ liệu đã tồn tại trước đó, chạy thêm `node scripts/updateMenuCategories.js` để đồng bộ danh mục món ăn/tag theo bộ chuẩn.
+
+Script output: inserts sample data into `restaurants` and `menuItems`; append-only (delete collections first if reseeding).
+
+## Useful Utilities
+- `scripts/seedRestaurants.js` (data generation).
+- `scripts/updateMenuCategories.js` (chuẩn hóa danh mục & tags cho dữ liệu hiện hữu).
+- `docs/api_endpoints.txt` – detailed Postman-ready JSON examples for every API.
+
+## Notes for Flutter Integration
+- Use Bearer token header for all protected routes.
+- Implement token refresh flow (store both tokens, refresh before expiry, logout clears tokens server-side).
+- Menu and restaurant lists are public; orders/promotions/reviews require auth.
+- Vendor dashboard uses same auth token as user but expects `managedRestaurants` list in profile response.
+- OTP emails & verification rely on Redis; ensure the environment replicates this in staging.
+
+Keep this document with the Flutter project; the assistant can reference these details to implement API clients, data models, and UI flows aligned with the backend.
+

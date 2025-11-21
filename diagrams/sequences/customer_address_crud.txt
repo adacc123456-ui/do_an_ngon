@@ -1,0 +1,91 @@
+title: Khách hàng quản lý địa chỉ giao hàng
+
+participant Customer as "Khách hàng"
+participant AddressUI as "ManageAddressesPage"
+participant AddressBloc as "AddressBloc"
+participant AddressRepo as "UserAddressRepository"
+participant Api as "ApiClient"
+participant Backend as "User Service"
+
+Customer->AddressUI: Mở trang Địa chỉ
+AddressUI->AddressBloc: FetchAddressesEvent
+AddressBloc->AddressRepo: getAddresses()
+AddressRepo->Api: GET /users/me/addresses
+Api->Backend: Lấy danh sách địa chỉ
+Backend-->Api: JSON addresses
+Api-->AddressRepo: Response
+AddressRepo-->AddressBloc: List<UserAddress>
+AddressBloc->AddressUI: state = AddressesLoaded(list)
+AddressUI->Customer: Hiển thị danh sách + nút thêm
+
+== Thêm địa chỉ mới ==
+Customer->AddressUI: Nhấn "Thêm địa chỉ"
+AddressUI->AddressBloc: CreateAddressEvent(formData)
+AddressBloc->AddressRepo: createAddress(...)
+AddressRepo->Api: POST /users/me/addresses
+Api->Backend: Lưu địa chỉ
+Backend-->Api: Address JSON
+Api-->AddressRepo: Response
+AddressRepo-->AddressBloc: UserAddress mới
+AddressBloc->AddressUI: Cập nhật danh sách + snackbar thành công
+
+== Chỉnh sửa / xóa ==
+Customer->AddressUI: Nhấn icon sửa hoặc xóa
+opt Sửa
+  AddressUI->AddressBloc: UpdateAddressEvent(id,data)
+  AddressBloc->AddressRepo: updateAddress(...)
+  AddressRepo->Api: PUT /users/me/addresses/{id}
+  Api->Backend: Cập nhật địa chỉ
+  Backend-->Api: Address JSON
+  Api-->AddressRepo: Response
+  AddressRepo-->AddressBloc: UserAddress đã cập nhật
+  AddressBloc->AddressUI: Thay thế item trong list
+else Xóa
+  AddressUI->AddressBloc: DeleteAddressEvent(id)
+  AddressBloc->AddressRepo: deleteAddress(id)
+  AddressRepo->Api: DELETE /users/me/addresses/{id}
+  Api->Backend: Xóa bản ghi
+  Backend-->Api: 204
+  AddressRepo-->AddressBloc: success
+  AddressBloc->AddressUI: Gỡ item khỏi list
+end
+
+opt Đặt mặc định
+  Customer->AddressUI: Chọn "Đặt làm mặc định"
+  AddressUI->AddressBloc: SetDefaultAddressEvent(id)
+  AddressBloc->AddressRepo: setDefaultAddress(id)
+  AddressRepo->Api: PATCH /users/me/addresses/{id}/default
+  Api->Backend: Cập nhật cờ mặc định
+  Backend-->Api: Success
+  AddressBloc->AddressUI: Reload + hiển thị badge "Mặc định"
+end
+
+newpage Hoạt động (PlantUML): Khách quản lý địa chỉ
+@startuml
+|Khách hàng|
+start
+:Mở trang Địa chỉ;
+|Hệ thống|
+:Tải danh sách địa chỉ hiện có;
+|Khách hàng|
+if (Thêm địa chỉ?) then (Có)
+  :Nhấn "Thêm địa chỉ";
+  :Nhập thông tin địa chỉ;
+  |Hệ thống|
+  :Kiểm tra & lưu địa chỉ mới;
+  :Cập nhật danh sách;
+endif
+if (Sửa/Xóa?) then (Có)
+  |Khách hàng|
+  :Chọn địa chỉ và thao tác;
+  |Hệ thống|
+  :Cập nhật hoặc xóa địa chỉ trong CSDL;
+endif
+if (Đặt mặc định?) then (Có)
+  |Khách hàng|
+  :Chọn "Đặt mặc định";
+  |Hệ thống|
+  :Cập nhật cờ mặc định và reload danh sách;
+endif
+stop
+@enduml

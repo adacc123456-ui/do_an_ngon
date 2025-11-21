@@ -1,0 +1,56 @@
+```mermaid
+flowchart LR
+  classDef actor fill:#fff,stroke:#333,stroke-width:1px,color:#000,font-weight:bold;
+  classDef usecase fill:#eef7ff,stroke:#3a7bd5,color:#0b3054,stroke-dasharray:3 2;
+
+  %% Actors
+  customer(["Khách hàng"])
+  vendor(["Chủ cửa hàng"])
+
+  class customer,vendor actor;
+
+  %% Customer use cases
+  ucLogin((Đăng ký / Đăng nhập))
+  ucSearch((Tìm kiếm & xem sản phẩm))
+  ucFavorites((Quản lý yêu thích))
+  ucAddress((Quản lý địa chỉ giao))
+  ucCart((Quản lý giỏ hàng))
+  ucCheckout((Đặt món & thanh toán))
+  ucTrack((Theo dõi trạng thái đơn))
+  ucReview((Đánh giá đơn hàng))
+
+  class ucLogin,ucSearch,ucFavorites,ucAddress,ucCart,ucCheckout,ucTrack,ucReview usecase;
+
+  customer --> ucLogin
+  customer --> ucSearch
+  customer --> ucFavorites
+  customer --> ucAddress
+  customer --> ucCart
+  customer --> ucCheckout
+  customer --> ucTrack
+  customer --> ucReview
+  ucCheckout --> ucTrack
+  ucCheckout --> ucCart
+
+  %% Vendor use cases
+  uvLogin((Đăng nhập Vendor))
+  uvDashboard((Xem dashboard))
+  uvOrders((Quản lý đơn hàng))
+  uvEstimate((Cập nhật thời gian giao dự kiến))
+  uvMenu((Quản lý món ăn))
+  uvAccount((Quản lý thông tin tài khoản))
+  uvAccepting((Bật / tắt nhận đơn))
+
+  class uvLogin,uvDashboard,uvOrders,uvEstimate,uvMenu,uvAccount,uvAccepting usecase;
+
+  vendor --> uvLogin
+  vendor --> uvDashboard
+  vendor --> uvOrders
+  vendor --> uvEstimate
+  vendor --> uvMenu
+  vendor --> uvAccount
+  vendor --> uvAccepting
+  uvOrders --> uvEstimate
+  uvOrders --> uvAccepting
+```
+

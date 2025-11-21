@@ -1,0 +1,63 @@
+title: Tìm kiếm toàn cục với tab Nhà hàng / Món ăn
+
+participant Customer as "Khách hàng"
+participant SearchUI as "SearchPage"
+participant SearchBloc as "SearchBloc"
+participant RestaurantRepo as "RestaurantRepository"
+participant Api as "ApiClient"
+participant Backend as "Search Service"
+
+Customer->SearchUI: Từ Home nhấn thanh tìm kiếm
+SearchUI->Customer: Hiển thị ô nhập + TabBar
+
+Customer->SearchUI: Nhập từ khóa + nhấn tìm
+SearchUI->SearchBloc: SearchSubmitted(query,filters)
+
+par Tab Nhà hàng
+  SearchBloc->RestaurantRepo: searchRestaurants(query,filters)
+  RestaurantRepo->Api: GET /restaurants?query=...
+  Api->Backend: Thực thi search Nhà hàng
+  Backend-->Api: JSON nhà hàng
+  Api-->RestaurantRepo: Response
+  RestaurantRepo-->SearchBloc: List<Restaurant>
+  SearchBloc->SearchUI: Cập nhật tab Nhà hàng
+and Tab Món ăn
+  SearchBloc->RestaurantRepo: searchFoods(query,filters)
+  RestaurantRepo->Api: GET /foods?query=...
+  Api->Backend: Thực thi search món
+  Backend-->Api: JSON món ăn
+  Api-->RestaurantRepo: Response
+  RestaurantRepo-->SearchBloc: List<Food>
+  SearchBloc->SearchUI: Cập nhật tab Món ăn
+end
+
+alt Có lỗi mạng / API
+  RestaurantRepo-->SearchBloc: ApiException(message)
+  SearchBloc->SearchUI: state = SearchError(message)
+  SearchUI->Customer: Hiển thị lỗi + nút thử lại
+end
+
+newpage Hoạt động (PlantUML): Tìm kiếm toàn cục
+@startuml
+|Khách hàng|
+start
+:Nhấn thanh tìm kiếm từ Home;
+|Hệ thống|
+:Hiển thị SearchPage với tab Nhà hàng/Món ăn;
+|Khách hàng|
+:Nhập từ khóa và nhấn tìm;
+|Hệ thống|
+:Gửi 2 request song song (Nhà hàng/Món ăn);
+if (Response thành công?) then (Có)
+  :Hiển thị kết quả ở từng tab;
+else (Không)
+  :Hiển thị thông báo lỗi + nút thử lại;
+  |Khách hàng|
+  repeat
+    :Nhấn thử lại hoặc chỉnh từ khóa;
+    |Hệ thống|
+    :Gửi lại request;
+  repeat while (Còn lỗi?)
+endif
+stop
+@enduml

@@ -1,0 +1,64 @@
+@startuml
+skinparam backgroundColor #ffffff
+skinparam actorStyle stickman
+skinparam usecase {
+  BackgroundColor #eef7ff
+  BorderColor #3a7bd5
+  ArrowColor #3a7bd5
+  FontColor #0b3054
+}
+
+left to right direction
+
+actor "Khách hàng" as Customer
+actor "Chủ cửa hàng (Vendor)" as Vendor
+
+rectangle "Tính năng cho khách hàng" {
+  usecase "Đăng ký / Đăng nhập" as UCLogin
+  usecase "Tìm kiếm & xem sản phẩm" as UCSearchView
+  usecase "Quản lý danh sách yêu thích" as UCFavorites
+  usecase "Quản lý địa chỉ giao" as UCAddress
+  usecase "Quản lý giỏ hàng" as UCCart
+  usecase "Đặt món & thanh toán" as UCCheckout
+  usecase "Theo dõi trạng thái đơn" as UCTrack
+  usecase "Đánh giá đơn hàng" as UCReview
+}
+
+rectangle "Tính năng cho chủ cửa hàng" {
+  usecase "Đăng nhập Vendor" as UVLogin
+  usecase "Xem dashboard" as UVDashboard
+  usecase "Quản lý đơn hàng" as UVOrders
+  usecase "Cập nhật thời gian giao dự kiến" as UVEstimate
+  usecase "Bật / tắt nhận đơn" as UVAccepting
+  usecase "Quản lý món ăn" as UVMenu
+  usecase "Quản lý thông tin tài khoản" as UVAccount
+}
+
+Customer --> UCLogin
+Customer --> UCSearchView
+Customer --> UCFavorites
+Customer --> UCAddress
+Customer --> UCCart
+Customer --> UCCheckout
+Customer --> UCTrack
+Customer --> UCReview
+
+UCCheckout .> UCCart : <<include>>
+UCCheckout .> UCAddress : <<include>>
+UCCheckout .> UCTrack : <<include>>
+UCReview .> UCTrack : <<extend>>
+
+Vendor --> UVLogin
+Vendor --> UVDashboard
+Vendor --> UVOrders
+Vendor --> UVEstimate
+Vendor --> UVAccepting
+Vendor --> UVMenu
+Vendor --> UVAccount
+
+UVOrders .> UVEstimate : <<include>>
+UVOrders .> UVAccepting : <<include>>
+UVMenu .> UVAccount : <<extend>>
+
+@enduml
+

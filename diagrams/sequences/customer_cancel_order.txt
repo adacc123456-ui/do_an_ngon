@@ -1,0 +1,47 @@
+title: Khách hàng yêu cầu hủy đơn
+
+participant Customer as "Khách hàng"
+participant OrderUI as "OrderDetailPage"
+participant OrdersBloc as "OrdersBloc"
+participant OrderRepo as "OrderRepository"
+participant Api as "ApiClient"
+participant Backend as "Order Service"
+
+Customer->OrderUI: Mở chi tiết đơn
+OrderUI->OrdersBloc: Check canCancel(status)
+
+alt Trạng thái cho phép hủy
+  Customer->OrderUI: Nhấn "Hủy đơn"
+  OrderUI->OrdersBloc: CancelOrderEvent(orderId,reason)
+  OrdersBloc->OrderRepo: cancelOrder(orderId,reason)
+  OrderRepo->Api: POST /orders/{id}/cancel
+  Api->Backend: Kiểm tra trạng thái và cập nhật thành canceled
+  Backend-->Api: Success + trạng thái mới
+  Api-->OrderRepo: Response
+  OrderRepo-->OrdersBloc: Updated order
+  OrdersBloc->OrderUI: state = CancelSuccess
+  OrderUI->Customer: Thông báo hủy thành công
+else Không cho phép
+  OrdersBloc->OrderUI: state = CancelNotAllowed
+  OrderUI->Customer: Hiển thị lý do không thể hủy
+end
+
+newpage Hoạt động (PlantUML): Khách hủy đơn hàng
+@startuml
+|Khách hàng|
+start
+:Mở đơn hàng muốn hủy;
+|Hệ thống|
+:Kiểm tra trạng thái đơn;
+if (Cho phép hủy?) then (Có)
+  |Khách hàng|
+  :Nhấn "Hủy đơn" và chọn lý do;
+  |Hệ thống|
+  :Gửi yêu cầu hủy, cập nhật trạng thái;
+  :Thông báo hủy thành công;
+else (Không)
+  :Thông báo không thể hủy (đã giao/đang chuẩn bị...);
+endif
+stop
+@enduml
+

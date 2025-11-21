@@ -1,0 +1,64 @@
+title: Cart operations – thêm / xóa món, cập nhật số lượng
+
+participant Customer as "Khách hàng"
+participant CartUI as "CartBottomSheet / CartPage"
+participant CartBloc as "CartBloc"
+participant CartRepo as "CartRepository"
+participant Api as "ApiClient"
+participant Backend as "Cart Service"
+
+Customer->CartUI: Chọn món và nhấn "Thêm vào giỏ"
+CartUI->CartBloc: AddItemEvent(foodId,quantity)
+CartBloc->CartRepo: addItem(foodId,quantity)
+CartRepo->Api: POST /cart/items
+Api->Backend: Lưu món vào giỏ
+Backend-->Api: Cart JSON
+Api-->CartRepo: Response
+CartRepo-->CartBloc: Updated cart
+CartBloc->CartUI: Hiển thị số lượng mới
+
+opt Cập nhật số lượng
+  Customer->CartUI: +/- số lượng
+  CartUI->CartBloc: UpdateItemQuantityEvent(itemId,qty)
+  CartBloc->CartRepo: updateItemQuantity(...)
+  CartRepo->Api: PATCH /cart/items/{id}
+  Api->Backend: Cập nhật qty + đồng bộ giá
+  Backend-->Api: Cart JSON
+  CartRepo-->CartBloc: Updated cart
+  CartBloc->CartUI: Refresh tổng tiền
+end
+
+opt Xóa món
+  Customer->CartUI: Nhấn icon xóa
+  CartUI->CartBloc: RemoveItemEvent(itemId)
+  CartBloc->CartRepo: removeItem(itemId)
+  CartRepo->Api: DELETE /cart/items/{id}
+  Api->Backend: Xóa món khỏi giỏ
+  Backend-->Api: Success
+  CartBloc->CartUI: Cập nhật UI (giỏ trống nếu hết món)
+end
+
+newpage Hoạt động (PlantUML): Thao tác giỏ hàng
+@startuml
+|Khách hàng|
+start
+:Chọn món và nhấn "Thêm vào giỏ";
+|Hệ thống|
+:Thêm món vào giỏ / đồng bộ backend;
+|Khách hàng|
+if (Cập nhật số lượng?) then (Có)
+  :Tăng/giảm số lượng;
+  |Hệ thống|
+  :Cập nhật qty + tổng tiền;
+endif
+if (Xóa món?) then (Có)
+  |Khách hàng|
+  :Nhấn xóa;
+  |Hệ thống|
+  :Gỡ món và cập nhật giỏ;
+endif
+|Khách hàng|
+:Tiếp tục mua hoặc thanh toán;
+stop
+@enduml
+

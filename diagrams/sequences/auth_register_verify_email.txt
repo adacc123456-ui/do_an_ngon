@@ -1,0 +1,70 @@
+title: Đăng ký + xác thực email trước khi auto login
+
+participant User as "Người dùng"
+participant RegisterUI as "RegisterPage"
+participant AuthRepo as "AuthRepository"
+participant Api as "ApiClient"
+participant Backend as "Auth Service"
+participant VerifyUI as "EmailVerificationPage"
+participant AuthBloc as "AuthBloc"
+
+User->RegisterUI: Nhập thông tin và nhấn "Đăng ký"
+RegisterUI->AuthRepo: register(payload)
+AuthRepo->Api: POST /auth/register
+Api->Backend: Tạo tài khoản ở trạng thái "pending"
+Backend-->Api: {requiresVerification:true,email}
+Api-->AuthRepo: Response
+AuthRepo-->RegisterUI: requiresVerification
+RegisterUI->VerifyUI: context.push('/verify-email',email)
+
+User->VerifyUI: Nhập mã OTP
+VerifyUI->AuthRepo: confirmEmailVerification(code,email)
+AuthRepo->Api: POST /auth/verify-email
+Api->Backend: Kiểm tra mã OTP
+Backend-->Api: AuthResponse(user,tokens)
+Api-->AuthRepo: AuthResponse
+AuthRepo-->VerifyUI: AuthResponse
+VerifyUI->AuthBloc: Dispatch CompleteAuthEvent(response)
+
+alt OTP hợp lệ
+  AuthBloc->VerifyUI: state = Authenticated(role)
+  alt role == customer
+    VerifyUI->VerifyUI: context.go('/home')
+  else role == vendor
+    VerifyUI->VerifyUI: context.go('/vendor-dashboard')
+  end
+else OTP sai / hết hạn
+  AuthRepo-->VerifyUI: ApiException(message)
+  VerifyUI->User: Hiển thị lỗi, giữ lại mã đã nhập
+end
+
+newpage Hoạt động (PlantUML): Đăng ký + xác thực email
+@startuml
+|Người dùng|
+start
+:Nhập thông tin đăng ký và nhấn "Đăng ký";
+|Hệ thống|
+:Tạo tài khoản trạng thái chờ xác thực;
+:Hiển thị màn nhập mã OTP;
+|Người dùng|
+:Nhập mã OTP được gửi qua email;
+|Hệ thống|
+:Kiểm tra mã OTP;
+if (OTP hợp lệ?) then (Có)
+  :Kích hoạt tài khoản, tạo token;
+  if (Role?) then (Khách)
+    :Điều hướng đến Home;
+  else (Chủ cửa hàng)
+    :Điều hướng đến Vendor Dashboard;
+  endif
+else (Không)
+  :Hiển thị lỗi OTP;
+  |Người dùng|
+  repeat
+    :Nhập lại OTP;
+    |Hệ thống|
+    :Kiểm tra lại;
+  repeat while (Còn sai?)
+endif
+stop
+@enduml

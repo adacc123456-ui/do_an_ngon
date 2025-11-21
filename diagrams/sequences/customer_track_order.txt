@@ -1,0 +1,49 @@
+title: Trình tự theo dõi trạng thái đơn (Khách hàng)
+
+participant Customer as "Khách hàng"
+participant UI as "OrdersPage"
+participant Bloc as "OrdersBloc"
+participant Repo as "OrderRepository"
+participant API as "ApiClient / Backend"
+participant DB as "Database"
+
+Customer->UI: Mở tab Đơn hàng
+UI->Bloc: 1. Yêu cầu danh sách đơn
+loop 10s auto-refresh
+  Bloc->Repo: 2. getOrders(status)
+  Repo->API: 3. GET /orders
+  API->DB: 4. Truy vấn đơn hàng
+  DB-->API: 5. Dữ liệu đơn
+  API-->Repo: 6. Response JSON
+  Repo-->Bloc: 7. Parse về model
+  Bloc->UI: 8. Cập nhật danh sách & timeline
+end
+
+opt Người dùng kéo refresh
+  Customer->UI: Kéo xuống refresh
+  UI->Bloc: 9. Force reload
+end
+
+newpage Hoạt động (PlantUML): Theo dõi trạng thái đơn
+@startuml
+|Người dùng|
+start
+:Mở trang Đơn hàng;
+|Hệ thống|
+:Hiển thị danh sách đơn và trạng thái hiện tại;
+:Lặp 10s gọi API để cập nhật;
+if (Có dữ liệu mới?) then (Có)
+  :Cập nhật trạng thái/timeline đơn;
+else (Không)
+  :Giữ trạng thái cũ hoặc báo lỗi;
+endif
+|Người dùng|
+if (Kéo để refresh?) then (Có)
+  :Thao tác kéo xuống;
+  |Hệ thống|
+  :Gọi API tức thì để lấy dữ liệu mới;
+endif
+|Người dùng|
+:Xem kết quả và thoát trang;
+stop
+@enduml
