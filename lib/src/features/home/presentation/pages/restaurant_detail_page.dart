@@ -117,25 +117,35 @@ class _RestaurantHeader extends StatelessWidget {
 
   const _RestaurantHeader({required this.restaurant});
 
+  bool get _hasValidImage {
+    final imageUrl = restaurant.imageUrl;
+    if (imageUrl.isEmpty || imageUrl == 'assets/images/monan.png') {
+      return false;
+    }
+    return imageUrl.startsWith('http') || imageUrl.startsWith('assets/');
+  }
+
   bool get _isRemoteImage => restaurant.imageUrl.startsWith('http');
 
   @override
   Widget build(BuildContext context) {
-    final imageWidget = _isRemoteImage
-        ? Image.network(
-            restaurant.imageUrl,
-            height: 200.h,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => _ImageFallback(height: 200.h),
-          )
-        : Image.asset(
-            restaurant.imageUrl,
-            height: 200.h,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => _ImageFallback(height: 200.h),
-          );
+    final imageWidget = _hasValidImage
+        ? (_isRemoteImage
+            ? Image.network(
+                restaurant.imageUrl,
+                height: 200.h,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _ImageFallback(height: 200.h),
+              )
+            : Image.asset(
+                restaurant.imageUrl,
+                height: 200.h,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _ImageFallback(height: 200.h),
+              ))
+        : _ImageFallback(height: 200.h);
 
     return Container(
       decoration: BoxDecoration(

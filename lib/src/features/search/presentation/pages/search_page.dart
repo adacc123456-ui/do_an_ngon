@@ -86,11 +86,23 @@ class _SearchPageState extends State<SearchPage> with SingleTickerProviderStateM
         _restaurants = results[0] as List<Restaurant>;
         _foods = results[1] as List<Food>;
         _isLoading = false;
+        _errorMessage = null;
       });
     } catch (e) {
       if (!mounted) return;
+      
+      // Debug: Log error để kiểm tra
+      // print('Search error: $e');
+      
+      String errorMessage = 'Không thể tìm kiếm. Vui lòng thử lại.';
+      if (e.toString().contains('Không thể tìm kiếm nhà hàng')) {
+        errorMessage = 'Không thể tìm kiếm nhà hàng. Vui lòng thử lại.';
+      } else if (e.toString().contains('Không thể tìm kiếm món ăn')) {
+        errorMessage = 'Không thể tìm kiếm món ăn. Vui lòng thử lại.';
+      }
+      
       setState(() {
-        _errorMessage = 'Không thể tìm kiếm. Vui lòng thử lại.';
+        _errorMessage = errorMessage;
         _isLoading = false;
         _restaurants = [];
         _foods = [];
@@ -348,25 +360,35 @@ class _RestaurantCard extends StatelessWidget {
 
   const _RestaurantCard({required this.restaurant});
 
+  bool get _hasValidImage {
+    final imageUrl = restaurant.imageUrl;
+    if (imageUrl.isEmpty || imageUrl == 'assets/images/monan.png') {
+      return false;
+    }
+    return imageUrl.startsWith('http') || imageUrl.startsWith('assets/');
+  }
+
   bool get _isRemoteImage => restaurant.imageUrl.startsWith('http');
 
   @override
   Widget build(BuildContext context) {
-    final imageWidget = _isRemoteImage
-        ? Image.network(
-            restaurant.imageUrl,
-            width: 80.w,
-            height: 80.w,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => _ImageFallback(),
-          )
-        : Image.asset(
-            restaurant.imageUrl,
-            width: 80.w,
-            height: 80.w,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => _ImageFallback(),
-          );
+    final imageWidget = _hasValidImage
+        ? (_isRemoteImage
+            ? Image.network(
+                restaurant.imageUrl,
+                width: 80.w,
+                height: 80.w,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _ImageFallback(),
+              )
+            : Image.asset(
+                restaurant.imageUrl,
+                width: 80.w,
+                height: 80.w,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _ImageFallback(),
+              ))
+        : _ImageFallback();
 
     return GestureDetector(
       onTap: () {
@@ -559,7 +581,7 @@ class _ImageFallback extends StatelessWidget {
         color: AppColors.lightGrey,
         borderRadius: BorderRadius.circular(8.r),
       ),
-      child: Icon(Icons.image, color: AppColors.grey, size: 40.sp),
+      child: Icon(Icons.restaurant, color: AppColors.grey, size: 40.sp),
     );
   }
 }

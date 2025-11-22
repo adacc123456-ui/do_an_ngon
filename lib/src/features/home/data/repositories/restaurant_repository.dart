@@ -92,7 +92,12 @@ class RestaurantRepository {
     String? query,
     String? cuisine,
     double? ratingMin,
+    double? priceMin,
+    double? priceMax,
+    String? district,
+    String? city,
     String? sortBy,
+    String? sortOrder,
     int limit = 20,
     int page = 1,
   }) async {
@@ -101,8 +106,11 @@ class RestaurantRepository {
         'limit': limit,
         'page': page,
       };
+      // Hỗ trợ cả 'q' và 'search' parameter
       if (query != null && query.isNotEmpty) {
         queryParams['q'] = query;
+        // Cũng thêm 'search' để đảm bảo tương thích
+        queryParams['search'] = query;
       }
       if (cuisine != null && cuisine.isNotEmpty) {
         queryParams['cuisine'] = cuisine;
@@ -110,16 +118,37 @@ class RestaurantRepository {
       if (ratingMin != null) {
         queryParams['ratingMin'] = ratingMin;
       }
+      if (priceMin != null) {
+        queryParams['priceMin'] = priceMin;
+      }
+      if (priceMax != null) {
+        queryParams['priceMax'] = priceMax;
+      }
+      if (district != null && district.isNotEmpty) {
+        queryParams['district'] = district;
+      }
+      if (city != null && city.isNotEmpty) {
+        queryParams['city'] = city;
+      }
       if (sortBy != null && sortBy.isNotEmpty) {
         queryParams['sortBy'] = sortBy;
+      }
+      if (sortOrder != null && sortOrder.isNotEmpty) {
+        queryParams['sortOrder'] = sortOrder;
       }
 
       final response = await _apiClient.dio.get(
         '/restaurants',
         queryParameters: queryParams,
       );
+      
+      // Debug: Log response để kiểm tra
+      // print('Search restaurants response: ${response.data}');
+      
       return _parseRestaurants(response.data);
     } on DioException catch (e) {
+      // Debug: Log error để kiểm tra
+      // print('Search restaurants error: ${e.response?.data}');
       throw _mapException(e, defaultMessage: 'Không thể tìm kiếm nhà hàng');
     }
   }
@@ -292,7 +321,13 @@ class RestaurantRepository {
   }
 
   List<Restaurant> _parseRestaurants(dynamic data) {
-    final Iterable<dynamic> items = _extractList(data, keys: ['data', 'restaurants']) ??
+    // Hỗ trợ nhiều format response:
+    // 1. { "data": { "items": [...] } } - format mới
+    // 2. { "data": { "restaurants": [...] } }
+    // 3. { "data": [...] } - format cũ
+    // 4. [...] - trực tiếp là array
+    final Iterable<dynamic> items = _extractList(data, keys: ['data', 'items']) ??
+        _extractList(data, keys: ['data', 'restaurants']) ??
         _extractList(data, keys: ['data']) ??
         (data is List ? data : const []);
 
