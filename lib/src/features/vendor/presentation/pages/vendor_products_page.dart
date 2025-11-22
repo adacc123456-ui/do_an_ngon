@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_it/get_it.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -268,11 +269,6 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
       );
     }
 
-    final selectedRestaurant = _managedRestaurants.firstWhere(
-      (restaurant) => restaurant.id == _selectedRestaurantId,
-      orElse: () => _managedRestaurants.first,
-    );
-
     return Column(
       children: [
         // Padding(
@@ -430,7 +426,10 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          onPressed: () {
+                            FocusScope.of(sheetContext).unfocus();
+                            Navigator.of(sheetContext).pop();
+                          },
                         ),
                       ],
                     ),
@@ -562,11 +561,18 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
                         onPressed: isSubmitting
                             ? null
                             : () async {
-                                final price = double.tryParse(priceController.text.trim());
-                                if (nameController.text.trim().isEmpty ||
+                                // Lưu giá trị từ controllers vào biến local trước khi async
+                                final name = nameController.text.trim();
+                                final priceText = priceController.text.trim();
+                                final imageUrl = imageUrlController.text.trim();
+                                final description = descriptionController.text.trim();
+                                final tags = tagsController.text;
+                                
+                                final price = double.tryParse(priceText);
+                                if (name.isEmpty ||
                                     price == null ||
                                     price <= 0 ||
-                                    imageUrlController.text.trim().isEmpty) {
+                                    imageUrl.isEmpty) {
                                   ScaffoldMessenger.of(sheetContext).showSnackBar(
                                     const SnackBar(
                                       content: Text('Vui lòng nhập đầy đủ và chính xác thông tin.'),
@@ -588,17 +594,16 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
                                 setSheetState(() => isSubmitting = true);
                                 try {
                                   await _vendorRepository.createMenuItem(
-                                    name: nameController.text.trim(),
+                                    name: name,
                                     price: price,
                                     category: selectedCategory,
-                                    imageUrl: imageUrlController.text.trim(),
+                                    imageUrl: imageUrl,
                                     restaurantId: restaurantId,
-                                    description: descriptionController.text.trim().isEmpty
-                                        ? null
-                                        : descriptionController.text.trim(),
-                                    tags: _parseCommaSeparated(tagsController.text),
+                                    description: description.isEmpty ? null : description,
+                                    tags: _parseCommaSeparated(tags),
                                   );
                                   if (!mounted) return;
+                                  FocusScope.of(sheetContext).unfocus();
                                   Navigator.of(sheetContext).pop();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -608,21 +613,29 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
                                   );
                                   _loadProducts();
                                 } on ApiException catch (e) {
-                                  setSheetState(() => isSubmitting = false);
-                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                    SnackBar(
-                                      content: Text(e.message),
-                                      backgroundColor: Colors.redAccent,
-                                    ),
-                                  );
+                                  try {
+                                    setSheetState(() => isSubmitting = false);
+                                    ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                      SnackBar(
+                                        content: Text(e.message),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  } catch (_) {
+                                    // Sheet đã đóng, bỏ qua
+                                  }
                                 } catch (_) {
-                                  setSheetState(() => isSubmitting = false);
-                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Không thể tạo sản phẩm. Vui lòng thử lại.'),
-                                      backgroundColor: Colors.redAccent,
-                                    ),
-                                  );
+                                  try {
+                                    setSheetState(() => isSubmitting = false);
+                                    ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Không thể tạo sản phẩm. Vui lòng thử lại.'),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  } catch (_) {
+                                    // Sheet đã đóng, bỏ qua
+                                  }
                                 }
                               },
                         style: ElevatedButton.styleFrom(
@@ -659,12 +672,17 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
         );
       },
     ).whenComplete(() {
-      nameController.dispose();
-      descriptionController.dispose();
-      priceController.dispose();
-      imageUrlController.dispose();
-      tagsController.dispose();
-      notesController.dispose();
+      // Delay dispose để đảm bảo tất cả focus events đã được xử lý
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          nameController.dispose();
+          descriptionController.dispose();
+          priceController.dispose();
+          imageUrlController.dispose();
+          tagsController.dispose();
+          notesController.dispose();
+        });
+      });
     });
   }
 
@@ -725,7 +743,10 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          onPressed: () {
+                            FocusScope.of(sheetContext).unfocus();
+                            Navigator.of(sheetContext).pop();
+                          },
                         ),
                       ],
                     ),
@@ -809,11 +830,18 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
                         onPressed: isSubmitting
                             ? null
                             : () async {
-                                final price = double.tryParse(priceController.text.trim());
-                                if (nameController.text.trim().isEmpty ||
+                                // Lưu giá trị từ controllers vào biến local trước khi async
+                                final name = nameController.text.trim();
+                                final priceText = priceController.text.trim();
+                                final imageUrl = imageUrlController.text.trim();
+                                final description = descriptionController.text.trim();
+                                final tags = tagsController.text;
+                                
+                                final price = double.tryParse(priceText);
+                                if (name.isEmpty ||
                                     price == null ||
                                     price <= 0 ||
-                                    imageUrlController.text.trim().isEmpty) {
+                                    imageUrl.isEmpty) {
                                   ScaffoldMessenger.of(sheetContext).showSnackBar(
                                     const SnackBar(
                                       content: Text('Vui lòng nhập đầy đủ và chính xác thông tin.'),
@@ -836,18 +864,17 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
                                 try {
                                   await _vendorRepository.updateMenuItem(
                                     menuItemId: product.id,
-                                    name: nameController.text.trim(),
+                                    name: name,
                                     price: price,
                                     category: selectedCategory!,
-                                    imageUrl: imageUrlController.text.trim(),
-                                    description: descriptionController.text.trim().isEmpty
+                                    imageUrl: imageUrl,
+                                    description: description.isEmpty ? null : description,
+                                    tags: _parseCommaSeparated(tags).isEmpty
                                         ? null
-                                        : descriptionController.text.trim(),
-                                    tags: _parseCommaSeparated(tagsController.text).isEmpty
-                                        ? null
-                                        : _parseCommaSeparated(tagsController.text),
+                                        : _parseCommaSeparated(tags),
                                   );
                                   if (!mounted) return;
+                                  FocusScope.of(sheetContext).unfocus();
                                   Navigator.of(sheetContext).pop();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -857,21 +884,29 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
                                   );
                                   _loadProducts();
                                 } on ApiException catch (e) {
-                                  setSheetState(() => isSubmitting = false);
-                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                    SnackBar(
-                                      content: Text(e.message),
-                                      backgroundColor: Colors.redAccent,
-                                    ),
-                                  );
+                                  try {
+                                    setSheetState(() => isSubmitting = false);
+                                    ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                      SnackBar(
+                                        content: Text(e.message),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  } catch (_) {
+                                    // Sheet đã đóng, bỏ qua
+                                  }
                                 } catch (_) {
-                                  setSheetState(() => isSubmitting = false);
-                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Không thể cập nhật sản phẩm. Vui lòng thử lại.'),
-                                      backgroundColor: Colors.redAccent,
-                                    ),
-                                  );
+                                  try {
+                                    setSheetState(() => isSubmitting = false);
+                                    ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Không thể cập nhật sản phẩm. Vui lòng thử lại.'),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  } catch (_) {
+                                    // Sheet đã đóng, bỏ qua
+                                  }
                                 }
                               },
                         style: ElevatedButton.styleFrom(
@@ -908,11 +943,16 @@ class _VendorProductsPageState extends State<VendorProductsPage> {
         );
       },
     ).whenComplete(() {
-      nameController.dispose();
-      descriptionController.dispose();
-      priceController.dispose();
-      imageUrlController.dispose();
-      tagsController.dispose();
+      // Delay dispose để đảm bảo tất cả focus events đã được xử lý
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          nameController.dispose();
+          descriptionController.dispose();
+          priceController.dispose();
+          imageUrlController.dispose();
+          tagsController.dispose();
+        });
+      });
     });
   }
 

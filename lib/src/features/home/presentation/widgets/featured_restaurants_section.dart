@@ -102,25 +102,35 @@ class _RestaurantCard extends StatelessWidget {
 
   const _RestaurantCard({required this.restaurant});
 
+  bool get _hasValidImage {
+    final imageUrl = restaurant.imageUrl;
+    if (imageUrl.isEmpty || imageUrl == 'assets/images/monan.png') {
+      return false;
+    }
+    return imageUrl.startsWith('http') || imageUrl.startsWith('assets/');
+  }
+
   bool get _isRemoteImage => restaurant.imageUrl.startsWith('http');
 
   @override
   Widget build(BuildContext context) {
-    final imageWidget = _isRemoteImage
-        ? Image.network(
-            restaurant.imageUrl,
-            width: double.infinity,
-            height: 120.h,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => _ImageFallback(),
-          )
-        : Image.asset(
-            restaurant.imageUrl,
-            width: double.infinity,
-            height: 120.h,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => _ImageFallback(),
-          );
+    final imageWidget = _hasValidImage
+        ? (_isRemoteImage
+            ? Image.network(
+                restaurant.imageUrl,
+                width: double.infinity,
+                height: 120.h,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _ImageFallback(),
+              )
+            : Image.asset(
+                restaurant.imageUrl,
+                width: double.infinity,
+                height: 120.h,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _ImageFallback(),
+              ))
+        : _ImageFallback();
 
     return GestureDetector(
       onTap: () {
@@ -214,7 +224,7 @@ class _ImageFallback extends StatelessWidget {
           topRight: Radius.circular(12.r),
         ),
       ),
-      child: Icon(Icons.image, color: AppColors.grey, size: 40.sp),
+      child: Icon(Icons.restaurant, color: AppColors.grey, size: 40.sp),
     );
   }
 }

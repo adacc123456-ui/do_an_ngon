@@ -303,7 +303,7 @@ class RestaurantRepository {
       return Restaurant(
         id: _extractString(map, ['id', '_id']) ?? '',
         name: _extractString(map, ['name']) ?? 'Quán ăn',
-        imageUrl: _extractString(map, ['heroImage', 'coverImage', 'imageUrl', 'bannerUrl']) ??
+        imageUrl: _extractString(map, ['heroImage', 'bannerImage', 'coverImage', 'imageUrl', 'bannerUrl']) ??
             'assets/images/monan.png',
         address: _extractString(address ?? {}, ['full', 'formatted', 'street', 'address']) ??
             _extractString(map, ['address']) ??

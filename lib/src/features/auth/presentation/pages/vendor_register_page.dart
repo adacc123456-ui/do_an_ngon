@@ -290,62 +290,62 @@ class _VendorRegisterPageState extends State<VendorRegisterPage> {
               ),
             ),
             SizedBox(height: 24.h),
-            Container(
-              padding: EdgeInsets.all(16.w),
-              decoration: BoxDecoration(
-                color: AppColors.lightGrey.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Phương thức đăng ký',
-                    style: TextStyle(
-                      color: AppColors.black,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    'Bạn có thể tạo cửa hàng mới ngay hoặc nhập ID cửa hàng do quản trị viên cấp.',
-                    style: TextStyle(
-                      color: AppColors.textGrey,
-                      fontSize: 12.sp,
-                    ),
-                  ),
-                  SizedBox(height: 12.h),
-                  SwitchListTile(
-                    value: _createNewRestaurant,
-                    onChanged: (value) {
-                      setState(() {
-                        _createNewRestaurant = value;
-                      });
-                    },
-                    title: Text(
-                      _createNewRestaurant ? 'Tạo cửa hàng mới' : 'Nhập ID cửa hàng đã có',
-                      style: TextStyle(
-                        color: AppColors.black,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    subtitle: Text(
-                      _createNewRestaurant
-                          ? 'Backend sẽ tự tạo nhà hàng và cấp quyền cho bạn.'
-                          : 'Sử dụng ID nhà hàng đã tồn tại trong hệ thống.',
-                      style: TextStyle(
-                        color: AppColors.textGrey,
-                        fontSize: 12.sp,
-                      ),
-                    ),
-                    activeColor: AppColors.primary,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ],
-              ),
-            ),
+            // Container(
+            //   padding: EdgeInsets.all(16.w),
+            //   decoration: BoxDecoration(
+            //     color: AppColors.lightGrey.withOpacity(0.3),
+            //     borderRadius: BorderRadius.circular(12.r),
+            //   ),
+            //   child: Column(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       Text(
+            //         'Phương thức đăng ký',
+            //         style: TextStyle(
+            //           color: AppColors.black,
+            //           fontSize: 14.sp,
+            //           fontWeight: FontWeight.w600,
+            //         ),
+            //       ),
+            //       SizedBox(height: 8.h),
+            //       Text(
+            //         'Bạn có thể tạo cửa hàng mới ngay hoặc nhập ID cửa hàng do quản trị viên cấp.',
+            //         style: TextStyle(
+            //           color: AppColors.textGrey,
+            //           fontSize: 12.sp,
+            //         ),
+            //       ),
+            //       SizedBox(height: 12.h),
+            //       SwitchListTile(
+            //         value: _createNewRestaurant,
+            //         onChanged: (value) {
+            //           setState(() {
+            //             _createNewRestaurant = value;
+            //           });
+            //         },
+            //         title: Text(
+            //           _createNewRestaurant ? 'Tạo cửa hàng mới' : 'Nhập ID cửa hàng đã có',
+            //           style: TextStyle(
+            //             color: AppColors.black,
+            //             fontSize: 14.sp,
+            //             fontWeight: FontWeight.w600,
+            //           ),
+            //         ),
+            //         subtitle: Text(
+            //           _createNewRestaurant
+            //               ? 'Backend sẽ tự tạo nhà hàng và cấp quyền cho bạn.'
+            //               : 'Sử dụng ID nhà hàng đã tồn tại trong hệ thống.',
+            //           style: TextStyle(
+            //             color: AppColors.textGrey,
+            //             fontSize: 12.sp,
+            //           ),
+            //         ),
+            //         activeColor: AppColors.primary,
+            //         contentPadding: EdgeInsets.zero,
+            //       ),
+            //     ],
+            //   ),
+            // ),
             SizedBox(height: 24.h),
             if (_createNewRestaurant) ...[
               Text(

@@ -61,6 +61,6 @@ class ApiClient {
     } catch (e) {
       debugPrint('⚠️  Không thể đọc API_BASE_URL từ .env: $e');
     }
-    return 'http://172.20.10.6:8080/api';
+    return 'http://192.168.0.112:8080/api';
   }
 }
