@@ -63,6 +63,9 @@
   "vendorRestaurant": {
     "name": "Bún Bò 24h",
     "description": "Bún bò Huế chuẩn vị nhà làm",
+    "headline": "Bún bò ngon nhất Hà Nội",
+    "heroImage": "https://example.com/images/bun-bo-hero.jpg",
+    "bannerImage": "https://example.com/images/bun-bo-banner.jpg",
     "phone": "0912345678",
     "address": {
       "street": "12 Nguyễn Huệ",
@@ -76,6 +79,7 @@
   }
 }
 ```
+- **Lưu ý**: `heroImage` là **bắt buộc** (phải là URL hợp lệ), `bannerImage` là tùy chọn.
 - Backend sẽ tự tạo document `restaurants`, gán `ownerId`, `slug` và update `user.managedRestaurants` với `restaurantId` vừa tạo → mobile nhận `managedRestaurants` ngay ở response `register` / `GET /users/me`.
 
 ### Đăng nhập
@@ -182,7 +186,17 @@
 
 ### Tìm kiếm nhà hàng
 `GET /restaurants`
-- Query gợi ý: `?q=pho&cuisine=Việt Nam&ratingMin=4&sortBy=rating&limit=10&page=1`
+- **Search parameters**: 
+  - `q` hoặc `search`: Tìm kiếm theo tên cửa hàng, mô tả, headline, loại món ăn, tags (không phân biệt hoa thường)
+  - `cuisine`: Loại món ăn (có thể nhiều, phân cách bằng dấu phẩy)
+  - `ratingMin`: Đánh giá tối thiểu (số)
+  - `priceMin`, `priceMax`: Khoảng giá
+  - `district`, `city`: Lọc theo quận/huyện, thành phố
+  - `sortBy`: `popularity` (mặc định), `rating`, `price`, `distance`, `newest`
+  - `sortOrder`: `asc` hoặc `desc`
+  - `limit`: Số lượng kết quả (mặc định 20, tối đa 100)
+  - `page`: Số trang (dùng với `limit`)
+- **Ví dụ**: `?q=Bún Bò&city=Hà Nội&ratingMin=4&sortBy=rating&limit=10&page=1`
 - **Response**: Mỗi restaurant trong danh sách có field `rating: { average: number, totalReviews: number }`
 
 ### Nhà hàng nổi bật
@@ -441,6 +455,20 @@
 { "status": "delivering", "note": "Đã giao cho shipper nội bộ" }
 ```
 Trạng thái hợp lệ: `confirmed`, `preparing`, `delivering`, `delivered`, `cancelled`.
+
+### Ước tính thời gian giao (khi chờ xác nhận)
+`PATCH /vendor/orders/{orderId}/estimate`
+```json
+{
+  "estimatedDeliveryTime": { "min": 25, "max": 40 },
+  "preparationTimeMinutes": 15,
+  "note": "Giao trong khoảng 25-40 phút"
+}
+```
+- Chỉ áp dụng khi đơn đang `pending` hoặc `confirmed`.
+- `estimatedDeliveryTime.min/max` tính bằng phút.
+- `preparationTimeMinutes` (optional) giúp mobile hiển thị thời gian chuẩn bị dự kiến.
+- Khi cập nhật thành công, order sẽ lưu lại giá trị mới trong `estimatedDeliveryTime` và đẩy một entry vào `statusHistory` để khách thấy thông báo trong tiến trình đơn.
 
 ### Quản lý món ăn (vendor)
 

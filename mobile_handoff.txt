@@ -24,6 +24,7 @@ Redis keys used for OTP/verification and cooldowns:
 ## Authentication Flow
 - Register (`POST /api/auth/register`) → returns user + tokens, triggers verification email.  
   - Vendor có thể truyền `managedRestaurantIds` (đã có dữ liệu trước) **hoặc** `vendorRestaurant` để hệ thống tự tạo nhà hàng mới và gán quyền quản lý ngay lập tức.
+  - **Lưu ý**: Khi dùng `vendorRestaurant`, field `heroImage` (URL ảnh) là **bắt buộc** để khách hàng có thể xem ảnh cửa hàng. `bannerImage` là tùy chọn.
 - Login (`POST /api/auth/login`) → returns user + tokens. `identifier` can be email or phone.
 - Refresh (`POST /api/auth/refresh`) → new token pair (requires stored refresh token match).
 - Logout (`POST /api/auth/logout`) → clears stored tokens (auth header required).

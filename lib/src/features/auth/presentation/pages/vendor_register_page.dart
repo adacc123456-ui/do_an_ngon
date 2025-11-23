@@ -28,6 +28,8 @@ class _VendorRegisterPageState extends State<VendorRegisterPage> {
   final _restaurantNameController = TextEditingController();
   final _restaurantDescriptionController = TextEditingController();
   final _restaurantPhoneController = TextEditingController();
+  final _heroImageController = TextEditingController();
+  final _bannerImageController = TextEditingController();
   final _streetController = TextEditingController();
   final _wardController = TextEditingController();
   final _districtController = TextEditingController();
@@ -57,6 +59,8 @@ class _VendorRegisterPageState extends State<VendorRegisterPage> {
     _restaurantNameController.dispose();
     _restaurantDescriptionController.dispose();
     _restaurantPhoneController.dispose();
+    _heroImageController.dispose();
+    _bannerImageController.dispose();
     _streetController.dispose();
     _wardController.dispose();
     _districtController.dispose();
@@ -106,6 +110,7 @@ class _VendorRegisterPageState extends State<VendorRegisterPage> {
   bool get _isVendorRestaurantValid {
     return _restaurantNameController.text.trim().isNotEmpty &&
         _restaurantPhoneController.text.trim().isNotEmpty &&
+        _heroImageController.text.trim().isNotEmpty &&
         _streetController.text.trim().isNotEmpty &&
         _wardController.text.trim().isNotEmpty &&
         _districtController.text.trim().isNotEmpty &&
@@ -123,6 +128,7 @@ class _VendorRegisterPageState extends State<VendorRegisterPage> {
       'name': _restaurantNameController.text.trim(),
       'description': _restaurantDescriptionController.text.trim(),
       'phone': _restaurantPhoneController.text.trim(),
+      'heroImage': _heroImageController.text.trim(),
       'address': {
         'street': _streetController.text.trim(),
         'ward': _wardController.text.trim(),
@@ -130,6 +136,12 @@ class _VendorRegisterPageState extends State<VendorRegisterPage> {
         'city': _cityController.text.trim(),
       },
     };
+    
+    // Thêm bannerImage nếu có
+    final bannerImage = _bannerImageController.text.trim();
+    if (bannerImage.isNotEmpty) {
+      payload['bannerImage'] = bannerImage;
+    }
 
     if (categories.isNotEmpty) {
       payload['categories'] = categories;
@@ -376,6 +388,21 @@ class _VendorRegisterPageState extends State<VendorRegisterPage> {
                 controller: _restaurantPhoneController,
                 keyboardType: TextInputType.phone,
                 requiredField: true,
+              ),
+              SizedBox(height: 16.h),
+              _buildTextField(
+                label: 'Link ảnh đại diện (Hero Image)',
+                controller: _heroImageController,
+                hint: 'https://example.com/images/restaurant-hero.jpg',
+                keyboardType: TextInputType.url,
+                requiredField: true,
+              ),
+              SizedBox(height: 16.h),
+              _buildTextField(
+                label: 'Link ảnh banner (tùy chọn)',
+                controller: _bannerImageController,
+                hint: 'https://example.com/images/restaurant-banner.jpg',
+                keyboardType: TextInputType.url,
               ),
               SizedBox(height: 16.h),
               _buildTextField(
